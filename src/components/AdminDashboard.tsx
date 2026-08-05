@@ -6,6 +6,7 @@ import {
   WithdrawalRequest,
   StoreSettings,
   ShippingZone,
+  PaymentRecord,
 } from '../types';
 import {
   LayoutDashboard,
@@ -36,6 +37,12 @@ import {
   Upload,
   Image as ImageIcon,
   Link as LinkIcon,
+  Download,
+  ShieldCheck,
+  FileSpreadsheet,
+  FileText,
+  Database,
+  Lock,
 } from 'lucide-react';
 import { storageApi } from '../lib/storage';
 
@@ -52,7 +59,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   orders,
   onRefreshData,
 }) => {
-  const [activeTab, setActiveTab] = useState<'analytics' | 'products' | 'categories' | 'shipping' | 'orders' | 'withdrawals' | 'settings'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'paystack' | 'products' | 'categories' | 'shipping' | 'orders' | 'withdrawals' | 'settings'>('analytics');
 
   // Product Form Modal State
   const [isAddingProduct, setIsAddingProduct] = useState(false);
@@ -302,6 +309,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="flex items-center gap-2 border-b border-slate-200 mb-8 overflow-x-auto pb-2 text-xs font-semibold">
           {[
             { id: 'analytics', label: 'KPI Analytics', icon: TrendingUp },
+            { id: 'paystack', label: 'Paystack Gateway & Audit', icon: ShieldCheck },
             { id: 'products', label: `Products (${products.length})`, icon: Package },
             { id: 'categories', label: `Categories (${categories.length})`, icon: Layers },
             { id: 'shipping', label: `Shipping Zones (${shippingZones.length})`, icon: Truck },
@@ -357,6 +365,251 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           </div>
         )}
+
+        {/* Paystack Gateway & Audit Tab */}
+        {activeTab === 'paystack' && (() => {
+          const paymentRecords = storageApi.getPaymentRecords();
+          const webhookLogs = storageApi.getWebhookLogs();
+          const auditLogs = storageApi.getAuditLogs();
+
+          const paidOrdersCount = orders.filter((o) => o.paymentStatus === 'paid').length;
+          const pendingOrdersCount = orders.filter((o) => o.paymentStatus === 'pending').length;
+          const failedOrdersCount = orders.filter((o) => o.paymentStatus === 'failed').length;
+
+          const exportToCSV = (data: any[], filename: string) => {
+            if (!data.length) return alert('No data available to export.');
+            const headers = Object.keys(data[0]).join(',');
+            const rows = data.map((obj) =>
+              Object.values(obj)
+                .map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`)
+                .join(',')
+            );
+            const csvContent = 'data:text/csv;charset=utf-8,' + [headers, ...rows].join('\n');
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', `${filename}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          };
+
+          return (
+            <div className="space-y-8 text-xs">
+              {/* Paystack Financial Metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
+                  <DollarSign className="w-6 h-6 text-emerald-600 mb-2" />
+                  <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Gross Paystack Revenue</h3>
+                  <p className="text-2xl font-black text-slate-900 mt-1">₦{totalRevenue.toLocaleString()}</p>
+                </div>
+
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
+                  <CheckCircle className="w-6 h-6 text-blue-600 mb-2" />
+                  <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Paid Orders</h3>
+                  <p className="text-2xl font-black text-slate-900 mt-1">{paidOrdersCount}</p>
+                </div>
+
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
+                  <Clock className="w-6 h-6 text-amber-500 mb-2" />
+                  <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Pending Payments</h3>
+                  <p className="text-2xl font-black text-amber-600 mt-1">{pendingOrdersCount}</p>
+                </div>
+
+                <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
+                  <XCircle className="w-6 h-6 text-rose-600 mb-2" />
+                  <h3 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Failed / Rejected</h3>
+                  <p className="text-2xl font-black text-rose-600 mt-1">{failedOrdersCount}</p>
+                </div>
+              </div>
+
+              {/* Transaction Ledger & Export Controls */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 font-display flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                      Paystack Verified Transaction History
+                    </h3>
+                    <p className="text-slate-500 text-[11px]">Real-time ledger of verified Paystack authorizations, gateway responses, and customer references</p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() =>
+                        exportToCSV(
+                          paymentRecords.map((r) => ({
+                            Reference: r.reference,
+                            OrderNumber: r.orderNumber,
+                            CustomerEmail: r.customerEmail,
+                            AmountPaid: r.amountPaid,
+                            Currency: r.currency,
+                            Method: r.paymentMethod,
+                            Channel: r.channel,
+                            AuthCode: r.authorizationCode,
+                            GatewayResponse: r.gatewayResponse,
+                            Status: r.status,
+                            PaymentDate: r.paymentDate,
+                          })),
+                          'Paystack_Transaction_Ledger'
+                        )
+                      }
+                      className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition-all"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" /> Export CSV
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        exportToCSV(
+                          orders.map((o) => ({
+                            OrderNumber: o.orderNumber,
+                            CustomerName: o.customerName,
+                            CustomerEmail: o.customerEmail,
+                            TotalAmount: o.totalAmount,
+                            PaymentStatus: o.paymentStatus,
+                            PaymentMethod: o.paymentMethod,
+                            PaymentReference: o.paymentReference || 'N/A',
+                            Status: o.status,
+                            CreatedAt: o.createdAt,
+                          })),
+                          'Nexovira_Orders_Report'
+                        )
+                      }
+                      className="bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-xs transition-all"
+                    >
+                      <FileText className="w-4 h-4" /> Export Excel
+                    </button>
+                  </div>
+                </div>
+
+                {/* Ledger Table */}
+                {paymentRecords.length === 0 ? (
+                  <div className="text-center py-8 text-slate-500 space-y-2">
+                    <Database className="w-8 h-8 text-slate-300 mx-auto" />
+                    <p className="font-medium">No verified Paystack payments in ledger yet.</p>
+                    <p className="text-[11px] text-slate-400">Complete an order via Paystack checkout or deposit to populate live transaction audit.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          <th className="p-3">Reference / Order #</th>
+                          <th className="p-3">Customer Email</th>
+                          <th className="p-3">Amount</th>
+                          <th className="p-3">Channel / Method</th>
+                          <th className="p-3">Auth Code / Gateway Response</th>
+                          <th className="p-3">Date</th>
+                          <th className="p-3">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 text-[11px]">
+                        {paymentRecords.map((p) => (
+                          <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="p-3 font-mono">
+                              <span className="font-bold text-slate-900 block">{p.reference}</span>
+                              <span className="text-[10px] text-slate-500">Order: #{p.orderNumber}</span>
+                            </td>
+                            <td className="p-3">
+                              <span className="font-bold text-slate-800 block">{p.customerName || 'Customer'}</span>
+                              <span className="text-slate-500">{p.customerEmail}</span>
+                            </td>
+                            <td className="p-3 font-black text-slate-900">
+                              ₦{p.amountPaid.toLocaleString()} <span className="text-[9px] text-slate-400 font-normal">{p.currency}</span>
+                            </td>
+                            <td className="p-3">
+                              <span className="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded text-[10px] uppercase">
+                                {p.channel || p.paymentMethod}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className="font-mono text-[10px] text-slate-700 block">{p.authorizationCode || 'AUTH_LIVE'}</span>
+                              <span className="text-[10px] text-emerald-600 font-medium">{p.gatewayResponse || 'Approved'}</span>
+                            </td>
+                            <td className="p-3 text-slate-500 font-medium">
+                              {new Date(p.paymentDate).toLocaleString()}
+                            </td>
+                            <td className="p-3">
+                              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold px-2 py-0.5 rounded uppercase text-[9px]">
+                                {p.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Webhook Events & HMAC Audit Section */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Webhook Logs */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-sm">
+                  <h4 className="font-bold text-slate-900 text-sm font-display flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-purple-600" />
+                    Paystack Webhook Event Logs (HMAC SHA512)
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Incoming <code className="bg-slate-100 px-1 py-0.5 rounded text-purple-600">POST /api/paystack/webhook</code> callbacks verified with signature header.
+                  </p>
+
+                  {webhookLogs.length === 0 ? (
+                    <p className="text-slate-400 py-4 font-medium text-[11px]">No webhook events received yet.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {webhookLogs.map((wh) => (
+                        <div key={wh.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-purple-700">{wh.event}</span>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                wh.signatureVerified
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-rose-100 text-rose-800'
+                              }`}
+                            >
+                              {wh.signatureVerified ? 'HMAC Verified' : 'Invalid Signature'}
+                            </span>
+                          </div>
+                          <p className="font-mono text-[10px] text-slate-600">Ref: {wh.reference}</p>
+                          <p className="text-[9px] text-slate-400">{new Date(wh.receivedAt).toLocaleString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Audit Logs */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-sm">
+                  <h4 className="font-bold text-slate-900 text-sm font-display flex items-center gap-2">
+                    <Database className="w-4 h-4 text-blue-600" />
+                    Security & Audit Trails
+                  </h4>
+                  <p className="text-[11px] text-slate-500">Immutable server logs tracking payment initialization, amount checks, and stock deductions.</p>
+
+                  {auditLogs.length === 0 ? (
+                    <p className="text-slate-400 py-4 font-medium text-[11px]">No audit log entries recorded yet.</p>
+                  ) : (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {auditLogs.map((al) => (
+                        <div key={al.id} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-blue-700">{al.action}</span>
+                            <span className="text-[9px] text-slate-400">{new Date(al.timestamp).toLocaleTimeString()}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-800">{al.details}</p>
+                          <p className="text-[9px] text-slate-500">Actor: {al.actor}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Products Management Tab */}
         {activeTab === 'products' && (

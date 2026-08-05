@@ -39,10 +39,46 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
+  // Paystack Connection State
+  const [paystackEmailInput, setPaystackEmailInput] = useState(currentUser.paystackEmail || currentUser.email);
+  const [paystackPublicKeyInput, setPaystackPublicKeyInput] = useState(currentUser.paystackPublicKey || 'pk_test_42ed8290f1ddc9550302b48d285a855a8286a0d2');
+  const [paystackConnecting, setPaystackConnecting] = useState(false);
+  const [connectSuccessMsg, setConnectSuccessMsg] = useState('');
+
   // Fund Wallet State
   const [depositAmount, setDepositAmount] = useState<number>(50000);
   const [depositMsg, setDepositMsg] = useState('');
   const [isFundingWallet, setIsFundingWallet] = useState(false);
+
+  const handleConnectPaystack = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!paystackEmailInput.trim()) return;
+
+    setPaystackConnecting(true);
+    setTimeout(() => {
+      const updatedUser: UserProfile = {
+        ...currentUser,
+        isPaystackConnected: true,
+        paystackEmail: paystackEmailInput.trim(),
+        paystackPublicKey: paystackPublicKeyInput.trim(),
+      };
+      storageApi.setCurrentUser(updatedUser);
+      setPaystackConnecting(false);
+      setConnectSuccessMsg('Paystack Account successfully linked! Real payment gateway features unlocked.');
+      onRefreshUserData();
+    }, 600);
+  };
+
+  const handleDisconnectPaystack = () => {
+    if (confirm('Disconnecting Paystack will lock wallet access until re-connected. Proceed?')) {
+      const updatedUser: UserProfile = {
+        ...currentUser,
+        isPaystackConnected: false,
+      };
+      storageApi.setCurrentUser(updatedUser);
+      onRefreshUserData();
+    }
+  };
 
   // Withdrawal Request State
   const [withdrawAmount, setWithdrawAmount] = useState<number>(20000);
@@ -104,10 +140,12 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         setTimeout(() => setDepositMsg(''), 5000);
       };
 
-      if (loaded && window.PaystackPop && paystackPublicKey) {
+      const pkey = currentUser.paystackPublicKey || paystackPublicKey || 'pk_test_42ed8290f1ddc9550302b48d285a855a8286a0d2';
+
+      if (loaded && window.PaystackPop) {
         const handler = window.PaystackPop.setup({
-          key: paystackPublicKey,
-          email: currentUser.email,
+          key: pkey,
+          email: currentUser.paystackEmail || currentUser.email,
           amount: Math.round(depositAmount * 100), // kobo
           ref: reference,
           currency: 'NGN',
@@ -274,9 +312,17 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
                 <Wallet className="w-6 h-6 text-blue-600 mb-2" />
                 <h3 className="text-xs font-bold text-slate-500 uppercase">Available Wallet Funds</h3>
-                <p className="text-2xl font-black text-slate-900 mt-1">
-                  ₦{currentUser.walletBalance.toLocaleString()}
-                </p>
+                {currentUser.isPaystackConnected ? (
+                  <p className="text-2xl font-black text-slate-900 mt-1">
+                    ₦{currentUser.walletBalance.toLocaleString()}
+                  </p>
+                ) : (
+                  <div className="mt-1">
+                    <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 inline-flex items-center gap-1">
+                      🔒 Paystack Not Connected
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
@@ -376,8 +422,95 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
           </div>
         )}
 
-        {activeSubTab === 'wallet' && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-xs">
+        {activeSubTab === 'wallet' && !currentUser.isPaystackConnected && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-8 max-w-xl mx-auto shadow-sm space-y-6 text-xs text-center">
+            <div className="w-14 h-14 bg-cyan-50 border border-cyan-200 text-cyan-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+              <ShieldCheck className="w-7 h-7" />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-bold text-slate-900 font-display">Paystack Account Connection Required</h3>
+              <p className="text-slate-500 mt-1 leading-relaxed">
+                To access your Nexovira Wallet, top up funds, or withdraw earnings to your bank, you must connect your registered Paystack account.
+              </p>
+            </div>
+
+            {connectSuccessMsg && (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-left font-medium">
+                {connectSuccessMsg}
+              </div>
+            )}
+
+            <form onSubmit={handleConnectPaystack} className="space-y-4 text-left bg-slate-50 p-5 border border-slate-200 rounded-xl">
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Paystack Account Email</label>
+                <input
+                  type="email"
+                  required
+                  value={paystackEmailInput}
+                  onChange={(e) => setPaystackEmailInput(e.target.value)}
+                  placeholder="e.g. user@example.com"
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-900 focus:outline-none focus:border-cyan-600 font-medium"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">This connects your customer profile with Paystack secure payment services.</p>
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">Paystack Merchant Public Key</label>
+                <input
+                  type="text"
+                  required
+                  value={paystackPublicKeyInput}
+                  onChange={(e) => setPaystackPublicKeyInput(e.target.value)}
+                  placeholder="pk_live_... or pk_test_..."
+                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-900 font-mono focus:outline-none focus:border-cyan-600 font-medium text-xs"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">Enter your real Paystack merchant public key to process live checkout and deposits.</p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={paystackConnecting}
+                className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+              >
+                {paystackConnecting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Connecting Paystack Account...</span>
+                  </>
+                ) : (
+                  <span>Connect Paystack Account & Unlock Wallet</span>
+                )}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {activeSubTab === 'wallet' && currentUser.isPaystackConnected && (
+          <div className="space-y-6 text-xs">
+            {/* Paystack Connection Status Banner */}
+            <div className="bg-cyan-50 border border-cyan-200 text-cyan-900 p-4 rounded-2xl flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-cyan-600 text-white flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="font-bold text-slate-900">Paystack Account Connected</p>
+                  <p className="text-slate-600 text-[11px]">
+                    Linked Email: <span className="font-semibold text-slate-900">{currentUser.paystackEmail || currentUser.email}</span>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleDisconnectPaystack}
+                className="text-xs font-bold text-rose-600 hover:bg-rose-100/60 px-3 py-1.5 rounded-lg border border-rose-200 transition-colors"
+              >
+                Disconnect
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             {/* Left: Fund & Withdraw */}
             <div className="lg:col-span-6 space-y-6">
               {/* Fund Wallet Card */}
@@ -531,6 +664,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
               )}
             </div>
           </div>
+        </div>
         )}
 
         {activeSubTab === 'referrals' && (

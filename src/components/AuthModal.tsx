@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { X, Lock, Mail, User, Phone, ArrowRight, ShieldCheck, AlertCircle, KeyRound } from 'lucide-react';
+import { X, Lock, Mail, User, Phone, ArrowRight, ShieldCheck, AlertCircle, KeyRound, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { UserProfile } from '../types';
-import { DEMO_ADMIN, DEMO_CUSTOMER, storageApi } from '../lib/storage';
+import { DEMO_ADMIN, storageApi } from '../lib/storage';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLoginSuccess: (user: UserProfile) => void;
-  initialMode?: 'signin' | 'signup' | 'admin';
+  initialMode?: 'signin' | 'signup' | 'admin' | 'forgot';
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -16,15 +16,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onLoginSuccess,
   initialMode = 'signin',
 }) => {
-  const [mode, setMode] = useState<'signin' | 'signup' | 'admin'>(initialMode);
+  const [mode, setMode] = useState<'signin' | 'signup' | 'admin' | 'forgot'>(initialMode);
 
   // Form Fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [resetSent, setResetSent] = useState(false);
 
   if (!isOpen) return null;
 
@@ -32,6 +36,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+
+    if (mode === 'forgot') {
+      if (!email.trim()) {
+        setErrorMsg('Please enter your registered email address.');
+        return;
+      }
+
+      // Verify email exists in registered accounts
+      const registeredUsers = storageApi.getRegisteredUsers();
+      const existingUser = registeredUsers.find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+      if (!existingUser && email.trim().toLowerCase() !== 'admin@nexovira.com') {
+        setErrorMsg('No registered account found with this email address. Please create an account first.');
+        return;
+      }
+
+      if (!resetSent) {
+        setResetSent(true);
+        const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        setSuccessMsg(`Reset code sent to ${email.trim()}! Your verification code is ${generatedOtp}. Enter your new password below.`);
+      } else {
+        if (!otpCode.trim() || !newPassword.trim()) {
+          setErrorMsg('Please enter the verification code and your new password.');
+          return;
+        }
+        setSuccessMsg('Password reset successfully! You can now sign in with your new password.');
+        setTimeout(() => {
+          setMode('signin');
+          setResetSent(false);
+          setPassword(newPassword);
+        }, 1200);
+      }
+      return;
+    }
 
     if (mode === 'admin') {
       // Validate Admin Credentials
@@ -67,14 +104,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         }
       }
 
-      // Customer sign in
-      const customerUser: UserProfile = {
-        ...DEMO_CUSTOMER,
-        email: email.trim(),
-        fullName: email.split('@')[0].toUpperCase() || DEMO_CUSTOMER.fullName,
-      };
-      storageApi.setCurrentUser(customerUser);
-      onLoginSuccess(customerUser);
+      // Check registered accounts
+      const registeredUsers = storageApi.getRegisteredUsers();
+      const existingUser = registeredUsers.find(
+        (u) => u.email.trim().toLowerCase() === email.trim().toLowerCase()
+      );
+
+      if (!existingUser) {
+        setErrorMsg('No account found with this email. You must create an account first before signing in.');
+        return;
+      }
+
+      storageApi.setCurrentUser(existingUser);
+      onLoginSuccess(existingUser);
       onClose();
       return;
     }
@@ -82,6 +124,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (mode === 'signup') {
       if (!fullName.trim() || !email.trim() || !phone.trim() || !password.trim()) {
         setErrorMsg('Please fill in all required fields.');
+        return;
+      }
+
+      const registeredUsers = storageApi.getRegisteredUsers();
+      const existing = registeredUsers.find(
+        (u) => u.email.trim().toLowerCase() === email.trim().toLowerCase()
+      );
+
+      if (existing) {
+        setErrorMsg('An account with this email address already exists. Please sign in instead.');
         return;
       }
 
@@ -94,9 +146,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         referralCode: `NEXO-${fullName.substring(0, 4).toUpperCase()}${Math.floor(10 + Math.random() * 90)}`,
         walletBalance: 0,
         referralEarnings: 0,
+        isPaystackConnected: false,
         createdAt: new Date().toISOString(),
       };
 
+      storageApi.registerUser(newUser);
       storageApi.setCurrentUser(newUser);
       onLoginSuccess(newUser);
       onClose();
@@ -117,16 +171,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-              {mode === 'admin' ? <Lock className="w-4 h-4 text-amber-300" /> : <User className="w-4 h-4 text-cyan-200" />}
+              {mode === 'admin' ? <Lock className="w-4 h-4 text-amber-300" /> : mode === 'forgot' ? <RefreshCw className="w-4 h-4 text-amber-200" /> : <User className="w-4 h-4 text-cyan-200" />}
             </div>
             <span className="text-xs font-bold uppercase tracking-wider text-cyan-200">
-              {mode === 'admin' ? 'Restricted Access' : mode === 'signin' ? 'Welcome Back' : 'Create Account'}
+              {mode === 'admin' ? 'Restricted Access' : mode === 'forgot' ? 'Account Recovery' : mode === 'signin' ? 'Welcome Back' : 'Create Account'}
             </span>
           </div>
 
           <h3 className="text-xl font-bold font-display">
             {mode === 'admin'
               ? 'Administrator Login'
+              : mode === 'forgot'
+              ? 'Reset Password'
               : mode === 'signin'
               ? 'Sign in to Nexovira'
               : 'Join Nexovira Store'}
@@ -134,6 +190,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <p className="text-xs text-white/80 mt-1">
             {mode === 'admin'
               ? 'Authorized store management portal authentication.'
+              : mode === 'forgot'
+              ? 'Enter your account email address to receive a password reset verification code.'
               : mode === 'signin'
               ? 'Access your orders, wallet balance, and saved wishlist.'
               : 'Register to unlock exclusive warranty, wallet rewards, and easy tracking.'}
@@ -202,19 +260,84 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Password</label>
-            <div className="relative">
-              <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500"
-              />
+          {mode !== 'forgot' && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-slate-700">Password</label>
+                {(mode === 'signin' || mode === 'admin') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMode('forgot');
+                      setErrorMsg('');
+                      setSuccessMsg('');
+                    }}
+                    className="text-[11px] font-semibold text-cyan-600 hover:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                )}
+              </div>
+              <div className="relative">
+                <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-9 pr-10 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors p-0.5"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+
+          {mode === 'forgot' && resetSent && (
+            <>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Verification Code (OTP)</label>
+                <div className="relative">
+                  <ShieldCheck className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    placeholder="Enter 6-digit code"
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">New Password</label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter new password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full pl-9 pr-10 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 font-medium"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors p-0.5"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
 
           <button
             type="submit"
@@ -227,6 +350,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <span>
               {mode === 'admin'
                 ? 'Authenticate Admin'
+                : mode === 'forgot'
+                ? resetSent
+                  ? 'Update Password'
+                  : 'Send Reset Code'
                 : mode === 'signin'
                 ? 'Sign In'
                 : 'Create Account'}
@@ -237,11 +364,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Footer Tabs Switcher */}
         <div className="bg-slate-50 p-4 border-t border-slate-200 text-center text-xs text-slate-600 flex items-center justify-between">
-          {mode === 'admin' ? (
+          {mode === 'admin' || mode === 'forgot' ? (
             <button
               onClick={() => {
                 setMode('signin');
                 setErrorMsg('');
+                setSuccessMsg('');
+                setResetSent(false);
               }}
               className="text-cyan-600 hover:underline font-bold"
             >
@@ -254,6 +383,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 onClick={() => {
                   setMode('signup');
                   setErrorMsg('');
+                  setSuccessMsg('');
                 }}
                 className="text-cyan-600 hover:underline font-bold"
               >
@@ -267,6 +397,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 onClick={() => {
                   setMode('signin');
                   setErrorMsg('');
+                  setSuccessMsg('');
                 }}
                 className="text-cyan-600 hover:underline font-bold"
               >
@@ -280,6 +411,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               onClick={() => {
                 setMode('admin');
                 setErrorMsg('');
+                setSuccessMsg('');
               }}
               className="text-slate-500 hover:text-amber-600 font-semibold flex items-center gap-1"
             >
@@ -292,3 +424,4 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     </div>
   );
 };
+

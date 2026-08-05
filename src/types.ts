@@ -10,6 +10,10 @@ export interface UserProfile {
   referredBy?: string;
   walletBalance: number;
   referralEarnings: number;
+  isPaystackConnected?: boolean;
+  paystackEmail?: string;
+  paystackCustomerCode?: string;
+  paystackPublicKey?: string;
   address?: {
     street: string;
     city: string;
@@ -97,6 +101,13 @@ export interface Order {
   paymentStatus: PaymentStatus;
   paymentMethod: PaymentMethod;
   paymentReference?: string;
+  transactionId?: string;
+  authorizationCode?: string;
+  gatewayResponse?: string;
+  currency?: string;
+  amountPaid?: number;
+  paymentDate?: string;
+  channel?: string;
   shippingAddress: {
     street: string;
     city: string;
@@ -106,6 +117,53 @@ export interface Order {
   trackingNumber?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PaymentRecord {
+  id: string;
+  orderId: string;
+  orderNumber: string;
+  reference: string;
+  transactionId?: string;
+  authorizationCode?: string;
+  paymentMethod: string;
+  channel?: string;
+  gatewayResponse?: string;
+  currency: string;
+  amountPaid: number;
+  status: PaymentStatus;
+  customerEmail: string;
+  customerName?: string;
+  paymentDate: string;
+  ipAddress?: string;
+}
+
+export interface WebhookLog {
+  id: string;
+  event: string;
+  reference: string;
+  status: string;
+  signatureVerified: boolean;
+  payload: any;
+  receivedAt: string;
+}
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  actor: string;
+  details: string;
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+export interface EmailNotificationLog {
+  id: string;
+  recipient: string;
+  subject: string;
+  body: string;
+  type: 'order_confirmation' | 'payment_confirmation' | 'admin_alert' | 'refund_alert';
+  sentAt: string;
 }
 
 export interface WalletTransaction {

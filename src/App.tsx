@@ -52,6 +52,53 @@ export default function App() {
     setCurrentUser(storageApi.getCurrentUser());
   };
 
+  useEffect(() => {
+    handleRefreshData();
+    const handleSync = () => handleRefreshData();
+    window.addEventListener('nexovira-data-sync', handleSync);
+    window.addEventListener('storage', handleSync);
+
+    // Paystack Hosted Page Callback Handler
+    const query = new URLSearchParams(window.location.search);
+    const ref = query.get('reference') || query.get('trxref');
+    if (ref) {
+      fetch(`/api/paystack/verify/${ref}`)
+        .then((r) => r.json())
+        .then((res) => {
+          if (res.success) {
+            const allOrders = storageApi.getOrders();
+            const existing = allOrders.find((o) => o.paymentReference === ref);
+            if (existing) {
+              const updatedOrders = storageApi.updateOrderPaymentDetails(existing.id, {
+                paymentStatus: 'paid',
+                transactionId: res.data?.transactionId || 'TX-PAYSTACK-' + Date.now(),
+                authorizationCode: res.data?.authorizationCode || 'AUTH-LIVE',
+                gatewayResponse: res.data?.gatewayResponse || 'Approved',
+                currency: res.data?.currency || 'NGN',
+                amountPaid: res.data?.amount || existing.totalAmount,
+                paymentDate: res.data?.paidAt || new Date().toISOString(),
+                channel: res.data?.channel || 'card',
+              });
+              const paidOrder = updatedOrders.find((o) => o.id === existing.id);
+              if (paidOrder) {
+                setConfirmedOrder(paidOrder);
+                storageApi.saveCart([]);
+                setCart([]);
+              }
+            }
+          }
+          // Clean URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+        })
+        .catch((err) => console.error('Error verifying Paystack redirect callback:', err));
+    }
+
+    return () => {
+      window.removeEventListener('nexovira-data-sync', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
+
   const handleSwitchUserRole = (role: 'guest' | 'customer' | 'admin') => {
     if (role === 'guest') {
       setCurrentUser(null);

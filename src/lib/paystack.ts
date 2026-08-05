@@ -4,8 +4,9 @@ interface PaystackInlineOptions {
   amount: number; // in Kobo (NGN * 100)
   ref: string;
   currency?: string;
+  channels?: string[];
   metadata?: Record<string, any>;
-  onSuccess: (response: { reference: string; status: string }) => void;
+  onSuccess: (response: { reference: string; status: string; message?: string; trans?: string; transaction?: string }) => void;
   onCancel: () => void;
 }
 
@@ -34,6 +35,27 @@ export const loadPaystackScript = (): Promise<boolean> => {
 
 export const paystackPublicKey = (import.meta as any).env?.VITE_PAYSTACK_PUBLIC_KEY || '';
 
+export async function initializeTransactionServer(params: {
+  email: string;
+  amount: number;
+  reference: string;
+  callbackUrl?: string;
+  metadata?: any;
+}): Promise<{ status: boolean; message?: string; data?: { authorization_url: string; access_code: string; reference: string } }> {
+  try {
+    const res = await fetch('/api/paystack/initialize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    const json = await res.json();
+    return json;
+  } catch (err: any) {
+    console.error('Initialize transaction server error:', err);
+    return { status: false, message: err?.message || 'Network error initializing transaction' };
+  }
+}
+
 export async function verifyPaymentServer(reference: string, amountExpected: number): Promise<{ success: boolean; message: string; data?: any }> {
   try {
     const res = await fetch('/api/paystack/verify', {
@@ -48,3 +70,4 @@ export async function verifyPaymentServer(reference: string, amountExpected: num
     return { success: false, message: err?.message || 'Network error verifying payment' };
   }
 }
+

@@ -9,17 +9,26 @@ import {
   ReferralRecord,
   StoreSettings,
   ShippingZone,
+  PaymentRecord,
+  WebhookLog,
+  AuditLog,
+  EmailNotificationLog,
 } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_CATEGORIES, INITIAL_SETTINGS, INITIAL_SHIPPING_ZONES } from '../data/initialData';
 
 const KEYS = {
   USER: 'nexovira_user_session',
+  REGISTERED_USERS: 'nexovira_registered_users',
   PRODUCTS: 'nexovira_products_catalog',
   CATEGORIES: 'nexovira_categories_list',
   CART: 'nexovira_shopping_cart',
   WISHLIST: 'nexovira_wishlist_ids',
   ORDERS: 'nexovira_orders_history',
   TRANSACTIONS: 'nexovira_wallet_transactions',
+  PAYMENTS: 'nexovira_payment_records',
+  WEBHOOK_LOGS: 'nexovira_paystack_webhook_logs',
+  AUDIT_LOGS: 'nexovira_audit_logs',
+  EMAIL_LOGS: 'nexovira_email_logs',
   WITHDRAWALS: 'nexovira_withdrawal_requests',
   REFERRALS: 'nexovira_referrals_records',
   SETTINGS: 'nexovira_store_settings',
@@ -47,8 +56,9 @@ export const DEMO_CUSTOMER: UserProfile = {
   phone: '08031234567',
   role: 'customer',
   referralCode: 'NEXO-TUNDE88',
-  walletBalance: 150000,
-  referralEarnings: 25000,
+  walletBalance: 0,
+  referralEarnings: 0,
+  isPaystackConnected: false,
   address: {
     street: '15 Admiralty Way',
     city: 'Lekki Phase 1',
@@ -73,6 +83,9 @@ function getStoredItem<T>(key: string, fallback: T): T {
 function setStoredItem<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('nexovira-data-sync'));
+    }
   } catch (err) {
     console.error(`Error saving localStorage key "${key}":`, err);
   }
@@ -94,6 +107,23 @@ export const storageApi = {
   },
   setCurrentUser(user: UserProfile | null): void {
     setStoredItem(KEYS.USER, user);
+  },
+
+  // Registered Accounts Registry
+  getRegisteredUsers(): UserProfile[] {
+    return getStoredItem<UserProfile[]>(KEYS.REGISTERED_USERS, [DEMO_CUSTOMER]);
+  },
+  registerUser(user: UserProfile): UserProfile[] {
+    const currentUsers = this.getRegisteredUsers();
+    const exists = currentUsers.some((u) => u.email.toLowerCase() === user.email.toLowerCase());
+    if (exists) {
+      const updated = currentUsers.map((u) => (u.email.toLowerCase() === user.email.toLowerCase() ? user : u));
+      setStoredItem(KEYS.REGISTERED_USERS, updated);
+      return updated;
+    }
+    const updated = [user, ...currentUsers];
+    setStoredItem(KEYS.REGISTERED_USERS, updated);
+    return updated;
   },
 
   // Products
@@ -206,17 +236,80 @@ export const storageApi = {
     const updated = [order, ...orders];
     this.saveOrders(updated);
 
-    // Reduce stock for ordered items
+    // Reduce stock for ordered items & mark out of stock automatically
     const products = this.getProducts();
     const updatedProducts = products.map((p) => {
       const match = order.items.find((item) => item.productId === p.id);
       if (match) {
         const newStock = Math.max(0, p.stock - match.quantity);
-        return { ...p, stock: newStock };
+        return {
+          ...p,
+          stock: newStock,
+        };
       }
       return p;
     });
     this.saveProducts(updatedProducts);
+
+    // Record Payment Entry if paid
+    if (order.paymentStatus === 'paid') {
+      const payRecord: PaymentRecord = {
+        id: 'pay-' + Date.now(),
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        reference: order.paymentReference || 'REF-' + Date.now(),
+        transactionId: order.transactionId,
+        authorizationCode: order.authorizationCode,
+        paymentMethod: order.paymentMethod,
+        channel: order.channel || 'paystack_inline',
+        gatewayResponse: order.gatewayResponse || 'Successful Paystack Payment',
+        currency: order.currency || 'NGN',
+        amountPaid: order.amountPaid || order.totalAmount,
+        status: 'paid',
+        customerEmail: order.customerEmail,
+        customerName: order.customerName,
+        paymentDate: order.paymentDate || new Date().toISOString(),
+      };
+      this.addPaymentRecord(payRecord);
+
+      // Audit Log
+      this.addAuditLog({
+        id: 'audit-' + Date.now(),
+        action: 'PAYMENT_VERIFIED_AND_ORDER_CREATED',
+        actor: order.customerEmail,
+        details: `Order #${order.orderNumber} placed and paid ₦${order.totalAmount.toLocaleString()} via Paystack/Wallet. Ref: ${payRecord.reference}`,
+        timestamp: new Date().toISOString(),
+        metadata: { orderId: order.id, reference: payRecord.reference },
+      });
+
+      // Email Confirmation Logs
+      this.addEmailLog({
+        id: 'email-' + Date.now() + '-cust-order',
+        recipient: order.customerEmail,
+        subject: `Order Confirmation #${order.orderNumber} - Nexovira Store`,
+        body: `Dear ${order.customerName},\n\nThank you for shopping at Nexovira Appliance Store! Your order #${order.orderNumber} for ₦${order.totalAmount.toLocaleString()} has been placed successfully and is currently being processed.\n\nShipping Address: ${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.state}.\n\nTracking Number: ${order.trackingNumber || 'Pending'}`,
+        type: 'order_confirmation',
+        sentAt: new Date().toISOString(),
+      });
+
+      this.addEmailLog({
+        id: 'email-' + Date.now() + '-cust-pay',
+        recipient: order.customerEmail,
+        subject: `Payment Receipt #${order.orderNumber} - Nexovira Store`,
+        body: `Payment Receipt\nReference: ${payRecord.reference}\nAmount Paid: ₦${order.totalAmount.toLocaleString()}\nMethod: Paystack (${order.paymentMethod})\nDate: ${new Date().toLocaleString()}`,
+        type: 'payment_confirmation',
+        sentAt: new Date().toISOString(),
+      });
+
+      this.addEmailLog({
+        id: 'email-' + Date.now() + '-admin',
+        recipient: 'admin@nexovira.com',
+        subject: `[NEW ORDER PAID] Order #${order.orderNumber}`,
+        body: `New paid order received from ${order.customerName} (${order.customerEmail}). Total Amount: ₦${order.totalAmount.toLocaleString()}. Payment Ref: ${payRecord.reference}`,
+        type: 'admin_alert',
+        sentAt: new Date().toISOString(),
+      });
+    }
 
     // Add Wallet Transaction record if paid via wallet
     if (order.paymentMethod === 'wallet' || order.paymentMethod === 'paystack_and_wallet') {
@@ -249,11 +342,66 @@ export const storageApi = {
     this.saveOrders(updated);
     return updated;
   },
+  updateOrderPaymentDetails(orderId: string, payData: Partial<Order>): Order[] {
+    const orders = this.getOrders();
+    const updated = orders.map((o) => {
+      if (o.id === orderId || o.orderNumber === orderId) {
+        return {
+          ...o,
+          ...payData,
+          paymentStatus: 'paid' as const,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return o;
+    });
+    this.saveOrders(updated);
+    return updated;
+  },
   deleteOrder(orderId: string): Order[] {
     const orders = this.getOrders();
     const updated = orders.filter((o) => o.id !== orderId);
     this.saveOrders(updated);
     return updated;
+  },
+
+  // Payment Records
+  getPaymentRecords(): PaymentRecord[] {
+    return getStoredItem<PaymentRecord[]>(KEYS.PAYMENTS, []);
+  },
+  addPaymentRecord(record: PaymentRecord): void {
+    const records = this.getPaymentRecords();
+    const exists = records.some((r) => r.reference === record.reference);
+    if (!exists) {
+      setStoredItem(KEYS.PAYMENTS, [record, ...records]);
+    }
+  },
+
+  // Webhook Logs
+  getWebhookLogs(): WebhookLog[] {
+    return getStoredItem<WebhookLog[]>(KEYS.WEBHOOK_LOGS, []);
+  },
+  addWebhookLog(log: WebhookLog): void {
+    const logs = this.getWebhookLogs();
+    setStoredItem(KEYS.WEBHOOK_LOGS, [log, ...logs]);
+  },
+
+  // Audit Logs
+  getAuditLogs(): AuditLog[] {
+    return getStoredItem<AuditLog[]>(KEYS.AUDIT_LOGS, []);
+  },
+  addAuditLog(log: AuditLog): void {
+    const logs = this.getAuditLogs();
+    setStoredItem(KEYS.AUDIT_LOGS, [log, ...logs]);
+  },
+
+  // Email Notification Logs
+  getEmailLogs(): EmailNotificationLog[] {
+    return getStoredItem<EmailNotificationLog[]>(KEYS.EMAIL_LOGS, []);
+  },
+  addEmailLog(log: EmailNotificationLog): void {
+    const logs = this.getEmailLogs();
+    setStoredItem(KEYS.EMAIL_LOGS, [log, ...logs]);
   },
 
   // Wallet & Transactions
