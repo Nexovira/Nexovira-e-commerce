@@ -1,0 +1,63 @@
+<svg viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="n-bg-glow" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#020d1c" />
+      <stop offset="60%" stop-color="#000000" />
+      <stop offset="100%" stop-color="#000000" />
+    </radialGradient>
+
+    <linearGradient id="n-cyan-gradient" x1="120" y1="100" x2="392" y2="440" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F0FF" />
+      <stop offset="35%" stop-color="#00D2FF" />
+      <stop offset="85%" stop-color="#0066FF" />
+      <stop offset="100%" stop-color="#0044CC" />
+    </linearGradient>
+
+    <linearGradient id="n-bevel-gradient" x1="150" y1="120" x2="360" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.8" />
+      <stop offset="30%" stop-color="#80F5FF" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#0088FF" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="n-flare-gradient" x1="100" y1="0" x2="412" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F0FF" stop-opacity="0" />
+      <stop offset="20%" stop-color="#00F0FF" stop-opacity="0.5" />
+      <stop offset="50%" stop-color="#00F0FF" stop-opacity="1" />
+      <stop offset="80%" stop-color="#00F0FF" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#00F0FF" stop-opacity="0" />
+    </linearGradient>
+
+    <filter id="neon-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="flare-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Pitch Black Canvas -->
+  <rect width="512" height="512" rx="64" fill="url(#n-bg-glow)" />
+
+  <circle cx="256" cy="240" r="160" fill="#00E5FF" opacity="0.12" filter="url(#neon-glow)" />
+
+  <!-- Shield N Shapes -->
+  <path d="M 152,116 L 218,116 L 218,295 L 186,327 L 152,293 Z" fill="url(#n-cyan-gradient)" />
+  <path d="M 220,138 L 324,138 L 272,192 Z" fill="url(#n-cyan-gradient)" />
+  <path d="M 220,146 L 318,292 L 318,116 L 388,116 L 388,298 L 256,428 L 152,324 L 184,292 L 256,364 L 318,302 L 220,154 Z" fill="url(#n-cyan-gradient)" filter="url(#neon-glow)" />
+  <path d="M 220,146 L 318,292 L 318,116 L 388,116 L 388,140 L 334,140 L 334,260 L 256,380 L 176,300 L 194,282 L 256,344 L 302,298 L 220,170 Z" fill="url(#n-bevel-gradient)" opacity="0.65" />
+  <path d="M 205,348 L 273,415 L 298,390 L 230,323 Z" fill="url(#n-cyan-gradient)" />
+
+  <!-- Flare Ray & Floor Reflection -->
+  <line x1="355" y1="125" x2="435" y2="45" stroke="#E0F7FA" stroke-width="4" stroke-linecap="round" filter="url(#flare-glow)" />
+  <line x1="375" y1="105" x2="415" y2="65" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" filter="url(#neon-glow)" />
+  <line x1="100" y1="460" x2="412" y2="460" stroke="url(#n-flare-gradient)" stroke-width="4" stroke-linecap="round" filter="url(#flare-glow)" />
+</svg>
