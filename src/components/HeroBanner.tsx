@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ArrowRight, ShieldCheck, Zap, Truck, Sparkles, Award } from 'lucide-react';
 
 interface HeroBannerProps {
@@ -12,12 +12,74 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   onOpenAiAssistant,
   onSelectCategory,
 }) => {
-  return (
-    <div className="relative bg-slate-900 text-white overflow-hidden border-b border-slate-800">
-      {/* Background Decorative Gradients */}
-      <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-cyan-500/20 via-sky-500/10 to-transparent pointer-events-none" />
-      <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
+  const [isVideoLoaded, setIsVideoLoaded] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {
+        // Autoplay policy fallback handled by poster image
+      });
+    }
+  }, []);
+
+  return (
+    <div className="relative bg-slate-950 text-white overflow-hidden border-b border-slate-800/80 min-h-[540px]">
+      {/* Background Video Layer */}
+      <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
+        {/* High-quality Poster Image while video loads or on unsupported autoplay */}
+        <img
+          src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1920&q=80"
+          alt="Nexovira 3D Smart Appliance Showroom"
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+            isVideoLoaded ? 'opacity-0' : 'opacity-100'
+          }`}
+        />
+
+        {/* Looping Photorealistic Background Video */}
+        <video
+          ref={videoRef}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          poster="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1920&q=80"
+          onLoadedData={() => setIsVideoLoaded(true)}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 scale-105 ${
+            isVideoLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          <source src="/hero-video.mp4" type="video/mp4" />
+          <source src="/Appliance_store_hero_background_…_202608052216.mp4" type="video/mp4" />
+        </video>
+
+        {/* Floating 3D Showroom UI Overlays (Matching uploaded video atmosphere) */}
+        <div className="absolute inset-0 pointer-events-none z-1 hidden md:block">
+          {/* Paystack Floating Badge from video */}
+          <div className="absolute top-10 right-[35%] bg-slate-900/80 backdrop-blur-md border border-emerald-500/40 text-emerald-300 px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-xl animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+            <span>✔ Paystack Checkout Verified</span>
+          </div>
+
+          {/* AC Blue Breeze Particles Glow */}
+          <div className="absolute top-6 right-20 w-48 h-20 bg-cyan-400/10 blur-xl rounded-full" />
+
+          {/* Smart TV Tag from video */}
+          <div className="absolute bottom-28 left-[45%] bg-slate-900/80 backdrop-blur-md border border-cyan-500/30 text-cyan-300 px-2.5 py-1 rounded-lg text-[10px] font-mono shadow-lg">
+            📺 Smart OLED TV • Inverter
+          </div>
+        </div>
+
+        {/* Ambient Radial Gradient Accent */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-cyan-500/15 via-sky-500/5 to-transparent pointer-events-none" />
+
+        {/* Dark Gradient Overlay (45–55% average opacity for optimal hero text readability) */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/65 to-slate-950/45 pointer-events-none z-2" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/35 to-slate-950/20 pointer-events-none z-2" />
+      </div>
+
+      {/* Hero Content Layer */}
       <div className="max-w-7xl mx-auto px-4 py-12 lg:py-20 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           {/* Left Hero Content */}
