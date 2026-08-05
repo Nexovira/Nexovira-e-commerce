@@ -14,13 +14,14 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { ContactPage } from './components/ContactPage';
 import { AboutPage } from './components/AboutPage';
 import { GeminiAiAssistant } from './components/GeminiAiAssistant';
+import { AuthModal } from './components/AuthModal';
 import { Footer } from './components/Footer';
 
 import { Product, ProductCategory, Order, UserProfile, CartItem } from './types';
 import { storageApi, DEMO_CUSTOMER, DEMO_ADMIN } from './lib/storage';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(storageApi.getCurrentUser() || DEMO_CUSTOMER);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(storageApi.getCurrentUser());
   const [products, setProducts] = useState<Product[]>(storageApi.getProducts());
   const [categories, setCategories] = useState<ProductCategory[]>(storageApi.getCategories());
   const [cart, setCart] = useState<CartItem[]>(storageApi.getCart());
@@ -31,6 +32,8 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   // Modals & Drawers
+  const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
+  const [authInitialMode, setAuthInitialMode] = useState<'signin' | 'signup' | 'admin'>('signin');
   const [searchOpen, setSearchOpen] = useState<boolean>(false);
   const [cartOpen, setCartOpen] = useState<boolean>(false);
   const [aiOpen, setAiOpen] = useState<boolean>(false);
@@ -135,7 +138,10 @@ export default function App() {
         onOpenCart={() => setCartOpen(true)}
         onOpenSearch={() => setSearchOpen(true)}
         onOpenAiAssistant={() => setAiOpen(true)}
-        onSwitchUserRole={handleSwitchUserRole}
+        onOpenAuth={(mode = 'signin') => {
+          setAuthInitialMode(mode);
+          setAuthModalOpen(true);
+        }}
         onLogout={handleLogout}
         selectedCategory={selectedCategory}
         onSelectCategory={(catId) => {
@@ -265,12 +271,35 @@ export default function App() {
         )}
 
         {activeTab === 'admin' && (
-          <AdminDashboard
-            products={products}
-            categories={categories}
-            orders={orders}
-            onRefreshData={handleRefreshData}
-          />
+          currentUser?.role === 'admin' ? (
+            <AdminDashboard
+              products={products}
+              categories={categories}
+              orders={orders}
+              onRefreshData={handleRefreshData}
+            />
+          ) : (
+            <div className="py-20 max-w-md mx-auto text-center px-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Admin Portal Restricted</h2>
+              <p className="text-xs text-slate-600 mb-6">
+                You must sign in with administrator credentials to access store management.
+              </p>
+              <button
+                onClick={() => {
+                  setAuthInitialMode('admin');
+                  setAuthModalOpen(true);
+                }}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-6 py-3 rounded-xl transition-all shadow-md shadow-amber-600/20"
+              >
+                Sign In as Administrator
+              </button>
+            </div>
+          )
         )}
 
         {activeTab === 'contact' && <ContactPage />}
@@ -337,14 +366,29 @@ export default function App() {
         }}
       />
 
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialMode={authInitialMode}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          if (user.role === 'admin') {
+            setActiveTab('admin');
+          } else {
+            setActiveTab('dashboard');
+          }
+        }}
+      />
+
       {/* Footer */}
       <Footer
         onSelectCategory={(catId) => {
           setSelectedCategory(catId);
           setActiveTab('shop');
         }}
-        onOpenAdmin={() => {
-          handleSwitchUserRole('admin');
+        onOpenAdminAuth={() => {
+          setAuthInitialMode('admin');
+          setAuthModalOpen(true);
         }}
       />
     </div>

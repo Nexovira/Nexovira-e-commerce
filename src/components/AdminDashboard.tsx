@@ -33,6 +33,9 @@ import {
   Phone,
   Mail,
   Clock,
+  Upload,
+  Image as ImageIcon,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { storageApi } from '../lib/storage';
 
@@ -454,14 +457,69 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-slate-600 mb-1 font-medium">Product Image URL</label>
-                  <input
-                    type="url"
-                    required
-                    value={pImgUrl}
-                    onChange={(e) => setPImgUrl(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-slate-600 font-medium">Product Image</label>
+                    <span className="text-[10px] text-slate-500">Upload file or enter URL</span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {/* Image File Upload Box */}
+                    <div className="border-2 border-dashed border-slate-300 hover:border-cyan-500 rounded-xl p-3 bg-slate-50 transition-colors text-center relative group cursor-pointer">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              if (typeof reader.result === 'string') {
+                                setPImgUrl(reader.result);
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      />
+                      <div className="flex flex-col items-center justify-center gap-1 py-1">
+                        <Upload className="w-5 h-5 text-slate-400 group-hover:text-cyan-600 transition-colors" />
+                        <span className="text-xs font-semibold text-slate-700">
+                          Click or drag image file here to upload
+                        </span>
+                        <span className="text-[10px] text-slate-400">PNG, JPG, WEBP or SVG up to 5MB</span>
+                      </div>
+                    </div>
+
+                    {/* Image Preview & URL Direct Input Fallback */}
+                    <div className="flex items-center gap-3 bg-white p-2 border border-slate-200 rounded-xl">
+                      {pImgUrl ? (
+                        <img
+                          src={pImgUrl}
+                          alt="Product Preview"
+                          referrerPolicy="no-referrer"
+                          className="w-12 h-12 object-cover rounded-lg border border-slate-200 bg-slate-100 shrink-0"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 shrink-0">
+                          <ImageIcon className="w-5 h-5" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                          Or Direct Image URL
+                        </label>
+                        <input
+                          type="url"
+                          required
+                          value={pImgUrl}
+                          onChange={(e) => setPImgUrl(e.target.value)}
+                          placeholder="https://..."
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-900 text-xs focus:bg-white focus:border-cyan-500 focus:outline-none truncate"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -596,14 +654,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
 
               <div>
-                <label className="block text-slate-600 mb-1 font-medium">Image URL</label>
-                <input
-                  type="url"
-                  required
-                  value={catImg}
-                  onChange={(e) => setCatImg(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-slate-600 font-medium">Category Image</label>
+                  <span className="text-[10px] text-slate-500">Upload or URL</span>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="border-2 border-dashed border-slate-300 hover:border-cyan-500 rounded-xl p-3 bg-slate-50 transition-colors text-center relative group cursor-pointer">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            if (typeof reader.result === 'string') {
+                              setCatImg(reader.result);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="flex flex-col items-center justify-center gap-1 py-1">
+                      <Upload className="w-4 h-4 text-slate-400 group-hover:text-cyan-600 transition-colors" />
+                      <span className="text-xs font-semibold text-slate-700">Upload image file</span>
+                      <span className="text-[10px] text-slate-400">Drag file or click</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 bg-white p-2 border border-slate-200 rounded-xl">
+                    {catImg ? (
+                      <img
+                        src={catImg}
+                        alt="Category Preview"
+                        referrerPolicy="no-referrer"
+                        className="w-10 h-10 object-cover rounded-lg border border-slate-200 bg-slate-100 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 shrink-0">
+                        <ImageIcon className="w-4 h-4" />
+                      </div>
+                    )}
+                    <input
+                      type="url"
+                      required
+                      value={catImg}
+                      onChange={(e) => setCatImg(e.target.value)}
+                      placeholder="https://..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-900 text-xs focus:bg-white focus:border-cyan-500 focus:outline-none truncate"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div>

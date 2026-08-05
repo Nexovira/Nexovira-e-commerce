@@ -27,7 +27,7 @@ interface NavbarProps {
   onOpenCart: () => void;
   onOpenSearch: () => void;
   onOpenAiAssistant: () => void;
-  onSwitchUserRole: (role: 'guest' | 'customer' | 'admin') => void;
+  onOpenAuth: (mode?: 'signin' | 'signup' | 'admin') => void;
   onLogout: () => void;
   selectedCategory: string;
   onSelectCategory: (catId: string) => void;
@@ -42,7 +42,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCart,
   onOpenSearch,
   onOpenAiAssistant,
-  onSwitchUserRole,
+  onOpenAuth,
   onLogout,
   onSelectCategory,
 }) => {
@@ -77,35 +77,32 @@ export const Navbar: React.FC<NavbarProps> = ({
             </a>
             <span className="text-slate-700">|</span>
             <div className="flex items-center gap-2">
-              <span className="text-slate-400">Mode:</span>
-              <button
-                onClick={() => onSwitchUserRole('guest')}
-                className={`px-2 py-0.5 rounded text-[11px] ${
-                  !currentUser ? 'bg-blue-600 text-white font-semibold' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Guest
-              </button>
-              <button
-                onClick={() => onSwitchUserRole('customer')}
-                className={`px-2 py-0.5 rounded text-[11px] ${
-                  currentUser?.role === 'customer'
-                    ? 'bg-blue-600 text-white font-semibold'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Customer
-              </button>
-              <button
-                onClick={() => onSwitchUserRole('admin')}
-                className={`px-2 py-0.5 rounded text-[11px] ${
-                  currentUser?.role === 'admin'
-                    ? 'bg-amber-600 text-white font-semibold'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Admin
-              </button>
+              {currentUser ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400">Signed in as:</span>
+                  <span className="text-cyan-400 font-semibold">{currentUser.fullName.split(' ')[0]}</span>
+                  {currentUser.role === 'admin' && (
+                    <span className="bg-amber-600/90 text-white font-bold px-1.5 py-0.5 rounded text-[10px]">
+                      ADMIN
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => onOpenAuth('signin')}
+                    className="px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold text-[11px] transition-colors"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => onOpenAuth('signup')}
+                    className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-[11px] transition-colors"
+                  >
+                    Create Account
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -258,20 +255,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                     <button
                       onClick={() => {
                         setUserDropdownOpen(false);
-                        onSwitchUserRole('customer');
+                        onOpenAuth('signin');
                       }}
                       className="w-full text-left px-4 py-2.5 hover:bg-slate-50 text-slate-700 flex items-center gap-2"
                     >
-                      <User className="w-4 h-4 text-blue-600" /> Customer Sign In
+                      <User className="w-4 h-4 text-cyan-600" /> Sign In
                     </button>
                     <button
                       onClick={() => {
                         setUserDropdownOpen(false);
-                        onSwitchUserRole('admin');
+                        onOpenAuth('signup');
                       }}
                       className="w-full text-left px-4 py-2.5 hover:bg-slate-50 text-slate-700 flex items-center gap-2"
                     >
-                      <ShieldCheck className="w-4 h-4 text-amber-600" /> Admin Portal
+                      <User className="w-4 h-4 text-blue-600" /> Create Account
                     </button>
                   </>
                 )}

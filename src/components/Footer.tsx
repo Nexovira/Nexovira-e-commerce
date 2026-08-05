@@ -4,10 +4,10 @@ import { NexoviraLogo } from './NexoviraLogo';
 
 interface FooterProps {
   onSelectCategory: (catId: string) => void;
-  onOpenAdmin: () => void;
+  onOpenAdminAuth: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin }) => {
+export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdminAuth }) => {
   return (
     <footer className="bg-slate-950 text-slate-300 border-t border-slate-800 text-xs pt-12 pb-8">
       <div className="max-w-7xl mx-auto px-4 space-y-10">
@@ -113,11 +113,11 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin })
 
               <div className="pt-2">
                 <button
-                  onClick={onOpenAdmin}
-                  className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-400 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+                  onClick={onOpenAdminAuth}
+                  className="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-amber-400 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
                 >
                   <Lock className="w-3 h-3" />
-                  <span>Admin Management</span>
+                  <span>Admin Portal</span>
                 </button>
               </div>
             </div>
