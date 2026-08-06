@@ -20,6 +20,8 @@ import {
   Edit2,
   Trash2,
   CheckCircle,
+  CheckCircle2,
+  Loader2,
   XCircle,
   DollarSign,
   TrendingUp,
@@ -45,6 +47,7 @@ import {
   Lock,
 } from 'lucide-react';
 import { storageApi } from '../lib/storage';
+import { realtimeSync } from '../lib/supabaseClient';
 
 interface AdminDashboardProps {
   products: Product[];
@@ -61,9 +64,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'analytics' | 'paystack' | 'products' | 'categories' | 'shipping' | 'orders' | 'withdrawals' | 'settings'>('analytics');
 
-  // Product Form Modal State
+  // Product Form Modal & Catalog State
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [productCategoryFilter, setProductCategoryFilter] = useState('all');
+
+  // Deletion Modal & Toast Feedback State
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
+  const [toastNotification, setToastNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const [pSku, setPSku] = useState('');
   const [pName, setPName] = useState('');
@@ -105,46 +115,132 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const totalRevenue = orders.reduce((sum, o) => (o.paymentStatus === 'paid' ? sum + o.totalAmount : sum), 0);
   const lowStockCount = products.filter((p) => p.stock <= 5).length;
 
-  const handleSaveProduct = (e: React.FormEvent) => {
+  // Filtered Products List
+  const filteredProducts = products.filter((p) => {
+    const matchesCat = productCategoryFilter === 'all' || p.categoryId === productCategoryFilter;
+    const q = productSearchQuery.toLowerCase().trim();
+    const matchesQ =
+      !q ||
+      p.name.toLowerCase().includes(q) ||
+      p.sku.toLowerCase().includes(q) ||
+      (p.categoryName && p.categoryName.toLowerCase().includes(q)) ||
+      (p.brand && p.brand.toLowerCase().includes(q));
+    return matchesCat && matchesQ;
+  });
+
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cat = categories.find((c) => c.id === pCategory);
+    try {
+      const cat = categories.find((c) => c.id === pCategory);
 
-    const productData: Product = {
-      id: editingProduct ? editingProduct.id : 'prod-' + Date.now(),
-      sku: pSku || 'NEXO-' + Math.floor(1000 + Math.random() * 9000),
-      name: pName,
-      slug: pName.toLowerCase().replace(/[^a-z0-0]+/g, '-'),
-      brand: pBrand,
-      categoryId: pCategory,
-      categoryName: cat?.name || 'General Appliances',
-      price: pPrice,
-      originalPrice: pOriginalPrice,
-      discountPercent: Math.round(((pOriginalPrice - pPrice) / pOriginalPrice) * 100),
-      description: pDesc || 'High quality Nexovira appliance.',
-      features: ['Inverter Motor Technology', 'Low Wattage Generator Mode', '2-Year Official Warranty'],
-      specs: { 'Brand': pBrand, 'Warranty': '2 Years' },
-      images: [pImgUrl],
-      stock: pStock,
-      rating: editingProduct ? editingProduct.rating : 5.0,
-      reviewCount: editingProduct ? editingProduct.reviewCount : 1,
-      createdAt: editingProduct ? editingProduct.createdAt : new Date().toISOString(),
-    };
+      const productData: Product = {
+        id: editingProduct ? editingProduct.id : 'prod-' + Date.now(),
+        sku: pSku || 'NEXO-' + Math.floor(1000 + Math.random() * 9000),
+        name: pName,
+        slug: pName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        brand: pBrand || 'Nexovira Pro',
+        categoryId: pCategory,
+        categoryName: cat?.name || 'General Appliances',
+        price: Number(pPrice),
+        originalPrice: Number(pOriginalPrice) || Number(pPrice),
+        discountPercent: pOriginalPrice > pPrice ? Math.round(((pOriginalPrice - pPrice) / pOriginalPrice) * 100) : 0,
+        description: pDesc || 'High quality Nexovira appliance.',
+        features: ['Inverter Motor Technology', 'Low Wattage Generator Mode', '2-Year Official Warranty'],
+        specs: { 'Brand': pBrand, 'Warranty': '2 Years' },
+        images: [pImgUrl || 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1000&q=80'],
+        stock: Number(pStock),
+        rating: editingProduct ? editingProduct.rating : 5.0,
+        reviewCount: editingProduct ? editingProduct.reviewCount : 1,
+        createdAt: editingProduct ? editingProduct.createdAt : new Date().toISOString(),
+      };
 
-    if (editingProduct) {
-      storageApi.updateProduct(productData);
-    } else {
-      storageApi.addProduct(productData);
+      if (editingProduct) {
+        storageApi.updateProduct(productData);
+        await fetch(`/api/products/${productData.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(productData),
+        }).catch((err) => console.warn('[Backend Put Warning]:', err));
+
+        realtimeSync.notifyChange('prices', { productId: productData.id, newPrice: productData.price, name: productData.name });
+        setToastNotification({
+          message: `Appliance "${productData.name}" updated successfully.`,
+          type: 'success',
+        });
+      } else {
+        storageApi.addProduct(productData);
+        await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(productData),
+        }).catch((err) => console.warn('[Backend Post Warning]:', err));
+
+        realtimeSync.notifyChange('products', { productId: productData.id, name: productData.name });
+        setToastNotification({
+          message: `New appliance "${productData.name}" added to catalog.`,
+          type: 'success',
+        });
+      }
+
+      setIsAddingProduct(false);
+      setEditingProduct(null);
+      onRefreshData();
+      setTimeout(() => setToastNotification(null), 4000);
+    } catch (err: any) {
+      console.error('[Save Product Error]:', err);
+      setToastNotification({
+        message: `Failed to save product: ${err?.message || 'Check form fields'}`,
+        type: 'error',
+      });
+      setTimeout(() => setToastNotification(null), 5000);
     }
-
-    setIsAddingProduct(false);
-    setEditingProduct(null);
-    onRefreshData();
   };
 
-  const handleDeleteProduct = (id: string) => {
-    if (confirm('Are you sure you want to delete this appliance product from catalog?')) {
-      storageApi.deleteProduct(id);
+  const handleConfirmDeleteProduct = async () => {
+    if (!productToDelete) return;
+    const targetId = productToDelete.id;
+    const targetName = productToDelete.name;
+    setIsDeletingProduct(true);
+
+    try {
+      // 1. Call Backend Delete Endpoint for server audit log
+      await fetch(`/api/products/${targetId}`, {
+        method: 'DELETE',
+      }).catch((err) => {
+        console.warn('[Backend Product Delete Warning]:', err);
+      });
+
+      // 2. Local Storage & Cart/Wishlist Cleanup
+      storageApi.deleteProduct(targetId);
+
+      // 3. Reset form if currently editing this product
+      if (editingProduct?.id === targetId) {
+        setEditingProduct(null);
+        setIsAddingProduct(false);
+      }
+
+      // 4. Broadcast Realtime Sync
+      realtimeSync.notifyChange('products', { productId: targetId, action: 'delete' });
+
+      // 5. Update parent state immediately
       onRefreshData();
+
+      // 6. Close Modal & Show Success Toast
+      setProductToDelete(null);
+      setToastNotification({
+        message: `Appliance "${targetName}" was permanently removed from store catalog.`,
+        type: 'success',
+      });
+      setTimeout(() => setToastNotification(null), 4000);
+    } catch (err: any) {
+      console.error('[Delete Product Error]:', err);
+      setToastNotification({
+        message: `Failed to delete product: ${err?.message || 'Unknown error'}`,
+        type: 'error',
+      });
+      setTimeout(() => setToastNotification(null), 5000);
+    } finally {
+      setIsDeletingProduct(false);
     }
   };
 
@@ -231,6 +327,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
     storageApi.updateOrderStatus(orderId, status);
+    realtimeSync.notifyChange('orders', { orderId, status });
     if (selectedOrder && selectedOrder.id === orderId) {
       setSelectedOrder({ ...selectedOrder, status });
     }
@@ -242,6 +339,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const allOrders = storageApi.getOrders();
     const updated = allOrders.map((o) => (o.id === orderId ? { ...o, trackingNumber: trackingNumberInput } : o));
     storageApi.saveOrders(updated);
+    realtimeSync.notifyChange('orders', { orderId, trackingNumber: trackingNumberInput });
     if (selectedOrder && selectedOrder.id === orderId) {
       setSelectedOrder({ ...selectedOrder, trackingNumber: trackingNumberInput });
     }
@@ -252,6 +350,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleDeleteOrder = (orderId: string) => {
     if (confirm('Are you sure you want to delete this order?')) {
       storageApi.deleteOrder(orderId);
+      realtimeSync.notifyChange('orders', { orderId, action: 'delete' });
       setSelectedOrder(null);
       onRefreshData();
     }
@@ -260,6 +359,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     storageApi.saveSettings(settings);
+    realtimeSync.notifyChange('settings', settings);
     alert('Nexovira Store Settings saved successfully.');
   };
 
@@ -544,7 +644,72 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
 
               {/* Webhook Events & HMAC Audit Section */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                {/* Multi-Vendor Paystack Accounts & Real-Time Sync Section */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+                    <div>
+                      <h4 className="font-bold text-slate-900 text-sm font-display flex items-center gap-2">
+                        <Users className="w-4 h-4 text-emerald-600" />
+                        Multi-Vendor Paystack Connect Accounts
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Active Paystack OAuth connections, merchant subaccount codes, and settlement statuses across vendors
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        realtimeSync.notifyChange('paystack', { action: 'admin_sync' });
+                        alert('⚡ Real-time Paystack & Store Sync Broadcasted to all connected clients!');
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition shrink-0"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Broadcast Real-Time Sync</span>
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          <th className="p-3">Vendor / Merchant</th>
+                          <th className="p-3">Paystack Email</th>
+                          <th className="p-3">Subaccount Code</th>
+                          <th className="p-3">Status</th>
+                          <th className="p-3">Connected Date</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 text-[11px]">
+                        {Object.entries(storageApi.getPaystackConnections()).length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="p-4 text-center text-slate-500">
+                              No vendor Paystack connections registered yet. Launch Paystack Connect Wizard in Customer Dashboard to connect.
+                            </td>
+                          </tr>
+                        ) : (
+                          Object.entries(storageApi.getPaystackConnections()).map(([userId, conn]: [string, any]) => (
+                            <tr key={userId} className="hover:bg-slate-50 transition">
+                              <td className="p-3 font-bold text-slate-900">{conn.businessName || 'Nexovira Merchant'}</td>
+                              <td className="p-3 text-slate-600">{conn.email || 'N/A'}</td>
+                              <td className="p-3 font-mono text-emerald-600 font-bold">{conn.subaccountCode || 'ACCT_LIVE'}</td>
+                              <td className="p-3">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                  conn.status === 'connected' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {conn.status || 'connected'}
+                                </span>
+                              </td>
+                              <td className="p-3 text-slate-500">{conn.connectedAt ? new Date(conn.connectedAt).toLocaleDateString() : 'Active'}</td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Webhook Logs */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4 shadow-sm">
                   <h4 className="font-bold text-slate-900 text-sm font-display flex items-center gap-2">
@@ -608,8 +773,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
             </div>
-          );
-        })()}
+          </div>
+        );
+      })()}
 
         {/* Products Management Tab */}
         {activeTab === 'products' && (
@@ -800,73 +966,143 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </form>
             )}
 
+            {/* Products Search & Category Filter Bar */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-sm">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={productSearchQuery}
+                  onChange={(e) => setProductSearchQuery(e.target.value)}
+                  placeholder="Search appliance by title, SKU, or brand..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none"
+                />
+                {productSearchQuery && (
+                  <button
+                    onClick={() => setProductSearchQuery('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <label className="text-slate-500 text-[11px] font-medium shrink-0">Category:</label>
+                <select
+                  value={productCategoryFilter}
+                  onChange={(e) => setProductCategoryFilter(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 font-medium focus:outline-none focus:border-blue-600"
+                >
+                  <option value="all">All Categories ({products.length})</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {/* Products Table */}
             <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-              <table className="w-full text-left border-collapse">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px]">
-                  <tr>
-                    <th className="p-3">Appliance</th>
-                    <th className="p-3">SKU</th>
-                    <th className="p-3">Category</th>
-                    <th className="p-3">Price</th>
-                    <th className="p-3">Stock</th>
-                    <th className="p-3 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200">
-                  {products.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50">
-                      <td className="p-3 flex items-center gap-3">
-                        <img
-                          src={p.images[0]}
-                          alt={p.name}
-                          referrerPolicy="no-referrer"
-                          className="w-10 h-10 object-cover rounded-lg bg-white border border-slate-200"
-                        />
-                        <span className="font-bold text-slate-900 max-w-xs truncate">{p.name}</span>
-                      </td>
-                      <td className="p-3 font-mono text-slate-500">{p.sku}</td>
-                      <td className="p-3 text-slate-700">{p.categoryName}</td>
-                      <td className="p-3 font-bold text-slate-900">₦{p.price.toLocaleString()}</td>
-                      <td className="p-3">
-                        <span
-                          className={`font-bold px-2 py-0.5 rounded text-[10px] ${
-                            p.stock <= 5 ? 'bg-rose-50 text-rose-600 border border-rose-200' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                          }`}
-                        >
-                          {p.stock} units
-                        </span>
-                      </td>
-                      <td className="p-3 text-right">
-                        <button
-                          onClick={() => {
-                            setEditingProduct(p);
-                            setPSku(p.sku);
-                            setPName(p.name);
-                            setPBrand(p.brand);
-                            setPCategory(p.categoryId);
-                            setPPrice(p.price);
-                            setPOriginalPrice(p.originalPrice || p.price);
-                            setPStock(p.stock);
-                            setPDesc(p.description);
-                            setPImgUrl(p.images[0]);
-                            setIsAddingProduct(true);
-                          }}
-                          className="p-1.5 text-blue-600 hover:bg-slate-100 rounded mr-2"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteProduct(p.id)}
-                          className="p-1.5 text-rose-600 hover:bg-slate-100 rounded"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </td>
+              <div className="overflow-x-auto min-w-full">
+                <table className="w-full text-left border-collapse min-w-[650px]">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
+                    <tr>
+                      <th className="p-3">Appliance</th>
+                      <th className="p-3">SKU</th>
+                      <th className="p-3">Category</th>
+                      <th className="p-3">Price</th>
+                      <th className="p-3">Stock</th>
+                      <th className="p-3 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {filteredProducts.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-slate-500 space-y-2">
+                          <Package className="w-8 h-8 text-slate-300 mx-auto" />
+                          <p className="font-semibold text-slate-700">No appliance products found.</p>
+                          <p className="text-[11px]">
+                            {productSearchQuery || productCategoryFilter !== 'all'
+                              ? 'Try adjusting your search query or category filter.'
+                              : 'Add your first appliance product to start selling.'}
+                          </p>
+                          {(productSearchQuery || productCategoryFilter !== 'all') && (
+                            <button
+                              onClick={() => {
+                                setProductSearchQuery('');
+                                setProductCategoryFilter('all');
+                              }}
+                              className="mt-2 text-xs text-blue-600 font-bold hover:underline"
+                            >
+                              Clear Search Filters
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredProducts.map((p) => (
+                        <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="p-3 flex items-center gap-3">
+                            <img
+                              src={p.images[0]}
+                              alt={p.name}
+                              referrerPolicy="no-referrer"
+                              className="w-10 h-10 object-cover rounded-lg bg-white border border-slate-200 shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <span className="font-bold text-slate-900 block truncate max-w-xs">{p.name}</span>
+                              <span className="text-[10px] text-cyan-600 font-medium">{p.brand}</span>
+                            </div>
+                          </td>
+                          <td className="p-3 font-mono text-slate-500 text-[11px]">{p.sku}</td>
+                          <td className="p-3 text-slate-700 font-medium">{p.categoryName}</td>
+                          <td className="p-3 font-bold text-slate-900">₦{p.price.toLocaleString()}</td>
+                          <td className="p-3">
+                            <span
+                              className={`font-bold px-2 py-0.5 rounded text-[10px] ${
+                                p.stock <= 5 ? 'bg-rose-50 text-rose-600 border border-rose-200' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                              }`}
+                            >
+                              {p.stock} units
+                            </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            <button
+                              onClick={() => {
+                                setEditingProduct(p);
+                                setPSku(p.sku);
+                                setPName(p.name);
+                                setPBrand(p.brand);
+                                setPCategory(p.categoryId);
+                                setPPrice(p.price);
+                                setPOriginalPrice(p.originalPrice || p.price);
+                                setPStock(p.stock);
+                                setPDesc(p.description);
+                                setPImgUrl(p.images[0]);
+                                setIsAddingProduct(true);
+                              }}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition mr-1"
+                              title="Edit Appliance Product"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setProductToDelete(p)}
+                              className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                              title="Delete Appliance Product"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -1501,6 +1737,94 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               Save Store Settings
             </button>
           </form>
+        )}
+
+        {/* Delete Appliance Product Confirmation Modal */}
+        {productToDelete && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3 text-rose-600 border-b border-slate-100 pb-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm md:text-base font-display">Confirm Permanent Deletion</h3>
+                  <p className="text-[11px] text-slate-500">This action cannot be undone</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-3">
+                <img
+                  src={productToDelete.images[0]}
+                  alt={productToDelete.name}
+                  referrerPolicy="no-referrer"
+                  className="w-14 h-14 object-cover rounded-lg border border-slate-200 bg-white shrink-0"
+                />
+                <div className="min-w-0 flex-1 text-xs">
+                  <h4 className="font-bold text-slate-900 truncate">{productToDelete.name}</h4>
+                  <p className="text-slate-500 font-mono text-[11px]">SKU: {productToDelete.sku}</p>
+                  <p className="text-slate-700 font-bold mt-0.5">
+                    ₦{productToDelete.price.toLocaleString()} • {productToDelete.stock} in stock
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Are you sure you want to permanently delete <strong className="text-slate-900">{productToDelete.name}</strong>? It will be removed immediately from the live storefront catalog, search results, customer carts, and database records.
+              </p>
+
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setProductToDelete(null)}
+                  disabled={isDeletingProduct}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50 transition text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteProduct}
+                  disabled={isDeletingProduct}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold transition shadow-md flex items-center gap-2 text-xs disabled:opacity-50"
+                >
+                  {isDeletingProduct ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete Permanently</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Global Toast Notification Overlay */}
+        {toastNotification && (
+          <div
+            className={`fixed bottom-6 right-6 z-50 max-w-sm px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-xs font-bold text-white transition-all animate-in slide-in-from-bottom-5 duration-200 ${
+              toastNotification.type === 'success' ? 'bg-emerald-600 shadow-emerald-600/20' : 'bg-rose-600 shadow-rose-600/20'
+            }`}
+          >
+            {toastNotification.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+            )}
+            <span className="flex-1">{toastNotification.message}</span>
+            <button
+              onClick={() => setToastNotification(null)}
+              className="text-white/80 hover:text-white font-black text-sm p-0.5 ml-1"
+            >
+              ×
+            </button>
+          </div>
         )}
       </div>
     </div>

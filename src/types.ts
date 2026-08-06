@@ -14,6 +14,10 @@ export interface UserProfile {
   paystackEmail?: string;
   paystackCustomerCode?: string;
   paystackPublicKey?: string;
+  paystackSubaccountCode?: string;
+  paystackBusinessName?: string;
+  paystackConnectionStatus?: 'connected' | 'pending' | 'disconnected';
+  paystackConnectedAt?: string;
   address?: {
     street: string;
     city: string;
@@ -222,6 +226,36 @@ export interface ShippingZone {
   price: number;
   estimatedDays: string;
   statesCovered: string[];
+}
+
+export interface StoreAnnouncement {
+  id: string;
+  title: string;
+  content: string;
+  type: 'info' | 'warning' | 'promo' | 'alert';
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface CouponDiscount {
+  id: string;
+  code: string;
+  discountPercent: number;
+  minSpend: number;
+  isActive: boolean;
+  expiryDate: string;
+}
+
+export interface PaystackMerchantConnectDetails {
+  merchantId: string;
+  businessName: string;
+  email: string;
+  subaccountCode: string;
+  publicKey?: string;
+  percentageCharge?: number;
+  status: 'connected' | 'pending' | 'disconnected';
+  connectedAt: string;
+  updatedAt: string;
 }
 
 export interface SearchFilterState {

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { storageApi } from '../lib/storage';
 import { loadPaystackScript, paystackPublicKey, verifyPaymentServer } from '../lib/paystack';
+import { PaystackConnectModal } from './PaystackConnectModal';
 
 interface CustomerDashboardProps {
   currentUser: UserProfile;
@@ -38,6 +39,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'overview' | 'orders' | 'wallet' | 'referrals' | 'profile'>('overview');
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [isPaystackModalOpen, setIsPaystackModalOpen] = useState(false);
 
   // Paystack Connection State
   const [paystackEmailInput, setPaystackEmailInput] = useState(currentUser.paystackEmail || currentUser.email);
@@ -424,65 +426,39 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
 
         {activeSubTab === 'wallet' && !currentUser.isPaystackConnected && (
           <div className="bg-white border border-slate-200 rounded-2xl p-8 max-w-xl mx-auto shadow-sm space-y-6 text-xs text-center">
-            <div className="w-14 h-14 bg-cyan-50 border border-cyan-200 text-cyan-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+            <div className="w-14 h-14 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
               <ShieldCheck className="w-7 h-7" />
             </div>
 
             <div>
-              <h3 className="text-lg font-bold text-slate-900 font-display">Paystack Account Connection Required</h3>
+              <h3 className="text-lg font-bold text-slate-900 font-display">Paystack Connect Account Required</h3>
               <p className="text-slate-500 mt-1 leading-relaxed">
-                To access your Nexovira Wallet, top up funds, or withdraw earnings to your bank, you must connect your registered Paystack account.
+                Connect or register your Paystack account to unlock instant automated settlements, wallet deposits, and direct payout transactions.
               </p>
             </div>
 
-            {connectSuccessMsg && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-left font-medium">
-                {connectSuccessMsg}
-              </div>
-            )}
-
-            <form onSubmit={handleConnectPaystack} className="space-y-4 text-left bg-slate-50 p-5 border border-slate-200 rounded-xl">
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Paystack Account Email</label>
-                <input
-                  type="email"
-                  required
-                  value={paystackEmailInput}
-                  onChange={(e) => setPaystackEmailInput(e.target.value)}
-                  placeholder="e.g. user@example.com"
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-900 focus:outline-none focus:border-cyan-600 font-medium"
-                />
-                <p className="text-[11px] text-slate-500 mt-1">This connects your customer profile with Paystack secure payment services.</p>
-              </div>
-
-              <div>
-                <label className="block text-slate-700 font-bold mb-1">Paystack Merchant Public Key</label>
-                <input
-                  type="text"
-                  required
-                  value={paystackPublicKeyInput}
-                  onChange={(e) => setPaystackPublicKeyInput(e.target.value)}
-                  placeholder="pk_live_... or pk_test_..."
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-slate-900 font-mono focus:outline-none focus:border-cyan-600 font-medium text-xs"
-                />
-                <p className="text-[11px] text-slate-500 mt-1">Enter your real Paystack merchant public key to process live checkout and deposits.</p>
-              </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 text-left space-y-3">
+              <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">Choose Onboarding Option:</h4>
+              <ul className="space-y-2 text-slate-600 text-xs">
+                <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span><strong>Sign in to existing Paystack:</strong> Connect via secure OAuth 2.0</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-500" />
+                  <span><strong>Create new Paystack:</strong> Register subaccount with bank settlement</span>
+                </li>
+              </ul>
 
               <button
-                type="submit"
-                disabled={paystackConnecting}
-                className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
+                type="button"
+                onClick={() => setIsPaystackModalOpen(true)}
+                className="w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 text-xs"
               >
-                {paystackConnecting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Connecting Paystack Account...</span>
-                  </>
-                ) : (
-                  <span>Connect Paystack Account & Unlock Wallet</span>
-                )}
+                <ShieldCheck className="w-4 h-4" />
+                <span>Launch Paystack Connect Onboarding</span>
               </button>
-            </form>
+            </div>
           </div>
         )}
 
@@ -777,6 +753,16 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             </div>
           </div>
         )}
+
+        {/* Paystack Connect Modal Wizard */}
+        <PaystackConnectModal
+          isOpen={isPaystackModalOpen}
+          onClose={() => setIsPaystackModalOpen(false)}
+          currentUser={currentUser}
+          onSuccess={() => {
+            onRefreshUserData();
+          }}
+        />
       </div>
     </div>
   );

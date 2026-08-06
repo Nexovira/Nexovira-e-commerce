@@ -15,6 +15,7 @@ import {
   EmailNotificationLog,
 } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_CATEGORIES, INITIAL_SETTINGS, INITIAL_SHIPPING_ZONES } from '../data/initialData';
+import { realtimeSync } from './supabaseClient';
 
 const KEYS = {
   USER: 'nexovira_user_session',
@@ -34,6 +35,9 @@ const KEYS = {
   SETTINGS: 'nexovira_store_settings',
   SHIPPING_ZONES: 'nexovira_shipping_zones',
   RECENTLY_VIEWED: 'nexovira_recently_viewed_ids',
+  PAYSTACK_CONNECTIONS: 'nexovira_paystack_merchant_connections',
+  ANNOUNCEMENTS: 'nexovira_store_announcements',
+  COUPONS: 'nexovira_store_coupons',
 };
 
 // Default Demo Accounts
@@ -85,6 +89,7 @@ function setStoredItem<T>(key: string, value: T): void {
     localStorage.setItem(key, JSON.stringify(value));
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('nexovira-data-sync'));
+      realtimeSync.notifyChange('products', { key, timestamp: Date.now() });
     }
   } catch (err) {
     console.error(`Error saving localStorage key "${key}":`, err);
@@ -149,7 +154,25 @@ export const storageApi = {
     const products = this.getProducts();
     const updated = products.filter((p) => p.id !== productId);
     this.saveProducts(updated);
+    this.cleanProductFromCartsAndWishlists(productId);
     return updated;
+  },
+  cleanProductFromCartsAndWishlists(productId: string): void {
+    try {
+      const cart = this.getCart();
+      const updatedCart = cart.filter((item) => item.product?.id !== productId);
+      this.saveCart(updatedCart);
+
+      const wishlist = this.getWishlistIds();
+      const updatedWishlist = wishlist.filter((id) => id !== productId);
+      this.saveWishlistIds(updatedWishlist);
+
+      const recentlyViewed = getStoredItem<string[]>(KEYS.RECENTLY_VIEWED, []);
+      const updatedRecentlyViewed = recentlyViewed.filter((id) => id !== productId);
+      setStoredItem(KEYS.RECENTLY_VIEWED, updatedRecentlyViewed);
+    } catch (err) {
+      console.error('Error cleaning deleted product from cart/wishlist:', err);
+    }
   },
 
   // Categories
@@ -216,11 +239,14 @@ export const storageApi = {
   getWishlistIds(): string[] {
     return getStoredItem<string[]>(KEYS.WISHLIST, []);
   },
+  saveWishlistIds(ids: string[]): void {
+    setStoredItem(KEYS.WISHLIST, ids);
+  },
   toggleWishlist(productId: string): string[] {
     const current = this.getWishlistIds();
     const exists = current.includes(productId);
     const updated = exists ? current.filter((id) => id !== productId) : [...current, productId];
-    setStoredItem(KEYS.WISHLIST, updated);
+    this.saveWishlistIds(updated);
     return updated;
   },
 
@@ -460,5 +486,76 @@ export const storageApi = {
     const updated = [productId, ...current].slice(0, 10);
     setStoredItem(KEYS.RECENTLY_VIEWED, updated);
     return updated;
+  },
+
+  // Paystack Merchant Connections
+  getPaystackConnections(): Record<string, any> {
+    return getStoredItem<Record<string, any>>(KEYS.PAYSTACK_CONNECTIONS, {});
+  },
+  getPaystackConnection(userId: string) {
+    const connections = this.getPaystackConnections();
+    return connections[userId] || null;
+  },
+  savePaystackConnection(userId: string, data: any) {
+    const connections = this.getPaystackConnections();
+    const updated = {
+      ...connections,
+      [userId]: {
+        ...data,
+        updatedAt: new Date().toISOString(),
+      },
+    };
+    setStoredItem(KEYS.PAYSTACK_CONNECTIONS, updated);
+    return updated[userId];
+  },
+  disconnectPaystack(userId: string) {
+    const connections = this.getPaystackConnections();
+    if (connections[userId]) {
+      connections[userId].status = 'disconnected';
+      connections[userId].updatedAt = new Date().toISOString();
+      setStoredItem(KEYS.PAYSTACK_CONNECTIONS, connections);
+    }
+  },
+
+  // Announcements
+  getAnnouncements(): any[] {
+    return getStoredItem<any[]>(KEYS.ANNOUNCEMENTS, [
+      {
+        id: 'ann-1',
+        title: '🚚 Free Nationwide Express Delivery!',
+        content: 'Enjoy free delivery on all smart inverter refrigerators & ACs above ₦250,000 this week.',
+        type: 'promo',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+  },
+  saveAnnouncements(list: any[]) {
+    setStoredItem(KEYS.ANNOUNCEMENTS, list);
+  },
+
+  // Coupons
+  getCoupons(): any[] {
+    return getStoredItem<any[]>(KEYS.COUPONS, [
+      {
+        id: 'cpn-1',
+        code: 'NEXO5',
+        discountPercent: 5,
+        minSpend: 100000,
+        isActive: true,
+        expiryDate: '2026-12-31',
+      },
+      {
+        id: 'cpn-2',
+        code: 'WELCOME10',
+        discountPercent: 10,
+        minSpend: 250000,
+        isActive: true,
+        expiryDate: '2026-12-31',
+      },
+    ]);
+  },
+  saveCoupons(list: any[]) {
+    setStoredItem(KEYS.COUPONS, list);
   },
 };

@@ -19,6 +19,7 @@ import { Footer } from './components/Footer';
 
 import { Product, ProductCategory, Order, UserProfile, CartItem } from './types';
 import { storageApi, DEMO_CUSTOMER, DEMO_ADMIN } from './lib/storage';
+import { realtimeSync } from './lib/supabaseClient';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(storageApi.getCurrentUser());
@@ -41,6 +42,7 @@ export default function App() {
   const [checkoutOpen, setCheckoutOpen] = useState<boolean>(false);
   const [appliedDiscount, setAppliedDiscount] = useState<number>(0);
   const [confirmedOrder, setConfirmedOrder] = useState<Order | null>(null);
+  const [realtimeToast, setRealtimeToast] = useState<{ message: string; type: string } | null>(null);
 
   // Sync state helpers
   const handleRefreshData = () => {
@@ -57,6 +59,20 @@ export default function App() {
     const handleSync = () => handleRefreshData();
     window.addEventListener('nexovira-data-sync', handleSync);
     window.addEventListener('storage', handleSync);
+
+    // Subscribe to multi-device Realtime Admin Broadcasts
+    const unsubscribeRealtime = realtimeSync.subscribeToChanges((event) => {
+      handleRefreshData();
+      let label = 'Live Store Catalog Updated';
+      if (event.eventType === 'products') label = '⚡ Admin Update: Catalog & Pricing updated in real-time';
+      if (event.eventType === 'orders') label = '⚡ Live Order Sync: Order status updated';
+      if (event.eventType === 'categories') label = '⚡ Admin Update: Categories updated';
+      if (event.eventType === 'announcements') label = '⚡ Announcement Update: Store announcement updated';
+      if (event.eventType === 'paystack') label = '⚡ Paystack Connect: Merchant account status synchronized';
+
+      setRealtimeToast({ message: label, type: event.eventType });
+      setTimeout(() => setRealtimeToast(null), 4000);
+    });
 
     // Paystack Hosted Page Callback Handler
     const query = new URLSearchParams(window.location.search);
@@ -96,6 +112,7 @@ export default function App() {
     return () => {
       window.removeEventListener('nexovira-data-sync', handleSync);
       window.removeEventListener('storage', handleSync);
+      unsubscribeRealtime();
     };
   }, []);
 
@@ -174,7 +191,18 @@ export default function App() {
   const featuredProducts = products.filter((p) => p.isFeatured || p.isBestSeller).slice(0, 6);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col justify-between">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex flex-col justify-between relative">
+      {/* Real-time Admin Changes Live Floating Toast */}
+      {realtimeToast && (
+        <div className="fixed top-20 right-4 z-50 bg-slate-900 text-emerald-400 border border-emerald-500/40 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+          </span>
+          <p className="text-xs font-semibold">{realtimeToast.message}</p>
+        </div>
+      )}
+
       {/* Header Navigation */}
       <Navbar
         currentUser={currentUser}

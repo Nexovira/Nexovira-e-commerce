@@ -71,3 +71,40 @@ export async function verifyPaymentServer(reference: string, amountExpected: num
   }
 }
 
+export async function getPaystackConnectUrl(params: {
+  userId: string;
+  mode: 'signin' | 'signup';
+  email: string;
+  businessName: string;
+}): Promise<{ success: boolean; url?: string; redirectUri?: string; sandboxUrl?: string; message?: string }> {
+  try {
+    const query = new URLSearchParams(params as any).toString();
+    const res = await fetch(`/api/paystack/connect/url?${query}`);
+    return await res.json();
+  } catch (err: any) {
+    console.error('Failed to get Paystack Connect URL:', err);
+    return { success: false, message: err?.message || 'Network error getting Paystack OAuth URL' };
+  }
+}
+
+export async function createPaystackSubaccountServer(params: {
+  userId: string;
+  businessName: string;
+  email: string;
+  settlementBank?: string;
+  accountNumber?: string;
+  percentageCharge?: number;
+}): Promise<{ success: boolean; message?: string; data?: any }> {
+  try {
+    const res = await fetch('/api/paystack/connect/subaccount', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    return await res.json();
+  } catch (err: any) {
+    console.error('Paystack subaccount creation failed:', err);
+    return { success: false, message: err?.message || 'Network error connecting Paystack account' };
+  }
+}
+
