@@ -46,8 +46,9 @@ export default function App() {
   const [realtimeToast, setRealtimeToast] = useState<{ message: string; type: string } | null>(null);
 
   // Sync state helpers
-  const handleRefreshData = () => {
-    setProducts(storageApi.getProducts());
+  const handleRefreshData = async () => {
+    const freshProducts = await storageApi.fetchProductsAsync();
+    setProducts(freshProducts);
     setCategories(storageApi.getCategories());
     setOrders(storageApi.getOrders());
     setCart(storageApi.getCart());
@@ -56,12 +57,23 @@ export default function App() {
   };
 
   useEffect(() => {
-    handleRefreshData();
+    // Initial async product fetch from persistent DB
+    storageApi.fetchProductsAsync().then((freshProducts) => {
+      setProducts(freshProducts);
+    });
+
     const handleSync = () => handleRefreshData();
     window.addEventListener('nexovira-data-sync', handleSync);
     window.addEventListener('storage', handleSync);
 
-    // Subscribe to multi-device Realtime Admin Broadcasts
+    // Periodic heartbeat poll (every 5 seconds) to ensure all devices stay 100% in sync
+    const pollInterval = setInterval(() => {
+      storageApi.fetchProductsAsync().then((prods) => {
+        setProducts(prods);
+      });
+    }, 5000);
+
+    // Subscribe to multi-device Realtime Admin Broadcasts & SSE
     const unsubscribeRealtime = realtimeSync.subscribeToChanges((event) => {
       handleRefreshData();
       let label = 'Live Store Catalog Updated';
@@ -113,6 +125,7 @@ export default function App() {
     return () => {
       window.removeEventListener('nexovira-data-sync', handleSync);
       window.removeEventListener('storage', handleSync);
+      clearInterval(pollInterval);
       unsubscribeRealtime();
     };
   }, []);

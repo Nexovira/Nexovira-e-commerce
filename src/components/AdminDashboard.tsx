@@ -103,6 +103,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Order Details Modal State & Filters
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [orderToDelete, setOrderToDelete] = useState<Order | null>(null);
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [orderStatusFilter, setOrderStatusFilter] = useState<'all' | Order['status']>('all');
   const [trackingNumberInput, setTrackingNumberInput] = useState('');
@@ -348,13 +349,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onRefreshData();
   };
 
-  const handleDeleteOrder = (orderId: string) => {
-    if (confirm('Are you sure you want to delete this order?')) {
-      storageApi.deleteOrder(orderId);
-      realtimeSync.notifyChange('orders', { orderId, action: 'delete' });
+  const confirmDeleteOrder = (order: Order) => {
+    setOrderToDelete(order);
+  };
+
+  const handleExecuteDeleteOrder = () => {
+    if (!orderToDelete) return;
+    const targetId = orderToDelete.id;
+    storageApi.deleteOrder(targetId);
+    realtimeSync.notifyChange('orders', { orderId: targetId, action: 'delete' });
+    if (selectedOrder && (selectedOrder.id === targetId || selectedOrder.orderNumber === targetId)) {
       setSelectedOrder(null);
-      onRefreshData();
     }
+    setOrderToDelete(null);
+    onRefreshData();
+    setToastNotification({
+      message: `Order #${orderToDelete.orderNumber} record permanently deleted.`,
+      type: 'success',
+    });
+    setTimeout(() => setToastNotification(null), 3500);
   };
 
   const handleSaveSettings = (e: React.FormEvent) => {
@@ -1501,6 +1514,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         >
                           <Eye className="w-3.5 h-3.5" /> Details
                         </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            confirmDeleteOrder(ord);
+                          }}
+                          title="Delete Order Record"
+                          className="bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-100 font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-all"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete
+                        </button>
                       </div>
                     </div>
 
@@ -1630,8 +1654,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* Action Buttons */}
               <div className="flex items-center justify-between pt-4 border-t border-slate-200">
                 <button
-                  onClick={() => handleDeleteOrder(selectedOrder.id)}
-                  className="text-rose-600 hover:bg-rose-50 px-3 py-2 rounded-xl border border-rose-200 font-bold flex items-center gap-1.5"
+                  onClick={() => confirmDeleteOrder(selectedOrder)}
+                  className="text-rose-600 hover:bg-rose-50 px-3.5 py-2 rounded-xl border border-rose-200 font-bold flex items-center gap-1.5 transition-all"
                 >
                   <Trash2 className="w-4 h-4" /> Delete Order Record
                 </button>
@@ -1641,6 +1665,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-2.5 rounded-xl shadow-sm"
                 >
                   Close Window
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Custom Order Deletion Confirmation Modal */}
+        {orderToDelete && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[60] flex items-center justify-center p-4">
+            <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl text-xs">
+              <div className="flex items-center gap-3 text-rose-600">
+                <div className="p-3 bg-rose-50 rounded-2xl border border-rose-200">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 font-display">Delete Order Record?</h3>
+                  <p className="text-slate-500 text-[11px]">This action cannot be undone.</p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                <p className="font-bold text-slate-900">Order #{orderToDelete.orderNumber}</p>
+                <p className="text-slate-600">Customer: {orderToDelete.customerName} ({orderToDelete.customerEmail})</p>
+                <p className="text-slate-600">Total: ₦{orderToDelete.totalAmount.toLocaleString()}</p>
+              </div>
+
+              <p className="text-slate-600">
+                Are you sure you want to permanently remove this order record from the store catalog?
+              </p>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setOrderToDelete(null)}
+                  className="px-4 py-2 text-slate-600 hover:bg-slate-100 font-bold rounded-xl"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleExecuteDeleteOrder}
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-sm"
+                >
+                  Confirm Delete
                 </button>
               </div>
             </div>

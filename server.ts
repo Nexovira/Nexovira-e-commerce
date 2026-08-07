@@ -1,8 +1,193 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import crypto from 'crypto';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
+import { createClient } from '@supabase/supabase-js';
+
+// Server-side Supabase Client Initialization
+const serverSupabaseUrl = process.env.VITE_SUPABASE_URL || '';
+const serverSupabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+const isServerSupabaseConfigured = Boolean(
+  serverSupabaseUrl && serverSupabaseKey && !serverSupabaseUrl.includes('your-supabase-project')
+);
+
+const serverSupabase = isServerSupabaseConfigured
+  ? createClient(serverSupabaseUrl, serverSupabaseKey)
+  : null;
+
+// Persistent Server Data File Store Setup
+const dataDir = path.join(process.cwd(), 'data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const productsFilePath = path.join(dataDir, 'products_store.json');
+
+// Initialize products file if it doesn't exist
+if (!fs.existsSync(productsFilePath)) {
+  const initialProductsData = [
+    {
+      id: 'prod-001',
+      sku: 'NEXO-FR-520L',
+      name: 'Nexovira Smart Inverter French Door Refrigerator 520L',
+      slug: 'nexovira-smart-inverter-french-door-refrigerator-520l',
+      brand: 'Nexovira Pro',
+      categoryId: 'cat-refrigerators',
+      categoryName: 'Refrigerators & Freezers',
+      price: 850000,
+      originalPrice: 980000,
+      discountPercent: 13,
+      description: 'Keep your groceries farm-fresh with the Nexovira 520L French Door Refrigerator. Featuring Dual Inverter Compressor technology, Multi-Airflow cooling, smart WiFi temperature controls, and an ice & water dispenser.',
+      features: [
+        'Dual Inverter Compressor with 10-Year Warranty',
+        'No-Frost Smart Air Circulation System',
+        'Door-in-Door Access for Energy Efficiency',
+        'External Touch Display & Ambient LED Lighting',
+        'Inbuilt Water & Ice Dispenser (Plumbed)'
+      ],
+      specs: {
+        'Capacity': '520 Liters',
+        'Energy Rating': 'A+++',
+        'Dimensions': '833mm x 1775mm x 740mm',
+        'Color': 'Platinum Brushed Stainless Steel',
+        'Noise Level': '38dB',
+        'Warranty': '2 Years General, 10 Years Compressor'
+      },
+      images: [
+        'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1000&q=80',
+        'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?auto=format&fit=crop&w=1000&q=80',
+        'https://images.unsplash.com/photo-1588854337236-6889d631faa8?auto=format&fit=crop&w=1000&q=80'
+      ],
+      stock: 12,
+      isFeatured: true,
+      isNewArrival: true,
+      isBestSeller: true,
+      rating: 4.9,
+      reviewCount: 38,
+      variations: [
+        { id: 'var-color', name: 'Finish', options: ['Platinum Stainless', 'Matte Black', 'Silver Gloss'] },
+        { id: 'var-capacity', name: 'Capacity', options: ['520L', '650L Premium'] }
+      ],
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'prod-002',
+      sku: 'NEXO-WM-12KG',
+      name: 'Nexovira Smart Steam Front-Load Washer 12kg + 8kg Dryer',
+      slug: 'nexovira-smart-steam-front-load-washer-12kg-8kg-dryer',
+      brand: 'Nexovira Eco',
+      categoryId: 'cat-washing-machines',
+      categoryName: 'Washing Machines & Dryers',
+      price: 620000,
+      originalPrice: 710000,
+      discountPercent: 12,
+      description: 'Streamline laundry day with AI load sensing, 99.9% steam allergy care, and rapid 14-minute quick wash.',
+      features: [
+        'AI Direct Drive Motor',
+        'SteamHygiene 99.9% Allergen Removal',
+        'Turbowash 360 Fast Cycle',
+        'Inverter Silent Operation'
+      ],
+      specs: {
+        'Washing Capacity': '12.0 kg',
+        'Drying Capacity': '8.0 kg',
+        'Spin Speed': '1400 RPM',
+        'Color': 'Titanium Dark Gray'
+      },
+      images: [
+        'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?auto=format&fit=crop&w=1000&q=80'
+      ],
+      stock: 8,
+      isFeatured: true,
+      isNewArrival: false,
+      isBestSeller: true,
+      rating: 4.8,
+      reviewCount: 24,
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'prod-003',
+      sku: 'NEXO-AC-20HP',
+      name: 'Nexovira Dual Inverter Air Conditioner 2.0HP + Gold Fin',
+      slug: 'nexovira-dual-inverter-air-conditioner-2hp-gold-fin',
+      brand: 'Nexovira Air',
+      categoryId: 'cat-air-conditioners',
+      categoryName: 'Air Conditioners & Cooling',
+      price: 490000,
+      originalPrice: 560000,
+      discountPercent: 12,
+      description: 'Cool your room in under 5 minutes with Tropicalized Dual Inverter compressor built for low voltage generator stability.',
+      features: [
+        '70% Energy Saver Dual Inverter',
+        'Anti-Corrosion Gold Fin Protection',
+        'Low Voltage Starter (LVS 135V-290V)',
+        'Built-in Ionizer Air Purifier'
+      ],
+      specs: {
+        'Capacity': '2.0 HP (18,000 BTU)',
+        'Refrigerant': 'R32 Eco-Friendly',
+        'Voltage': '135V - 290V'
+      },
+      images: [
+        'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1000&q=80'
+      ],
+      stock: 15,
+      isFeatured: true,
+      isNewArrival: true,
+      isBestSeller: false,
+      rating: 4.9,
+      reviewCount: 42,
+      createdAt: new Date().toISOString()
+    }
+  ];
+  fs.writeFileSync(productsFilePath, JSON.stringify(initialProductsData, null, 2), 'utf8');
+}
+
+// In-memory Server Product Store Cache
+let serverProductsMemory: any[] = [];
+try {
+  const raw = fs.readFileSync(productsFilePath, 'utf8');
+  serverProductsMemory = JSON.parse(raw);
+} catch (e) {
+  serverProductsMemory = [];
+}
+
+// Save helper
+function saveProductsToDisk(products: any[]) {
+  serverProductsMemory = products;
+  try {
+    fs.writeFileSync(productsFilePath, JSON.stringify(products, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Error saving products_store.json:', err);
+  }
+}
+
+// SSE Realtime Client Connections Store
+const sseClients = new Set<express.Response>();
+
+function broadcastSSE(eventType: string, payload?: any) {
+  const eventString = `data: ${JSON.stringify({ eventType, payload, timestamp: Date.now() })}\n\n`;
+  for (const client of sseClients) {
+    try {
+      client.write(eventString);
+    } catch {
+      sseClients.delete(client);
+    }
+  }
+}
+
+// Periodic ping to keep SSE connections active
+setInterval(() => {
+  for (const client of sseClients) {
+    try {
+      client.write(':ping\n\n');
+    } catch {
+      sseClients.delete(client);
+    }
+  }
+}, 15000);
 
 // In-memory idempotency store & webhook logs for production security & audit
 const verifiedReferences = new Set<string>();
@@ -450,40 +635,125 @@ async function startServer() {
     res.json({ logs: auditLogsStore });
   });
 
-  // Product Management REST API Endpoints
-  app.delete('/api/products/:id', (req, res) => {
+  // Realtime Server-Sent Events (SSE) Stream Endpoint for instant global sync
+  app.get('/api/realtime/stream', (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    sseClients.add(res);
+
+    req.on('close', () => {
+      sseClients.delete(res);
+    });
+  });
+
+  // Product Management REST API Endpoints with Global Sync
+  app.get('/api/products', async (_req, res) => {
     try {
-      const { id } = req.params;
-      if (!id) {
-        return res.status(400).json({ success: false, message: 'Product ID is required for deletion' });
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
+      if (serverSupabase) {
+        try {
+          const { data, error } = await serverSupabase
+            .from('products')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+          if (!error && data && data.length > 0) {
+            const formatted = data.map((item: any) => ({
+              id: item.id,
+              sku: item.sku || 'NEXO-' + item.id,
+              name: item.name,
+              slug: item.slug || item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+              brand: item.brand || 'Nexovira',
+              categoryId: item.category_id || item.categoryId || 'cat-refrigerators',
+              categoryName: item.category_name || item.categoryName || 'Appliance',
+              price: Number(item.price || 0),
+              originalPrice: item.original_price ? Number(item.original_price) : undefined,
+              discountPercent: item.discount_percent ? Number(item.discount_percent) : undefined,
+              description: item.description || '',
+              features: Array.isArray(item.features) ? item.features : typeof item.features === 'string' ? JSON.parse(item.features) : [],
+              specs: typeof item.specs === 'object' && item.specs ? item.specs : {},
+              images: Array.isArray(item.images) ? item.images : typeof item.images === 'string' ? JSON.parse(item.images) : [item.image || 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1000&q=80'],
+              stock: Number(item.stock || 0),
+              isFeatured: Boolean(item.is_featured ?? item.isFeatured),
+              isNewArrival: Boolean(item.is_new_arrival ?? item.isNewArrival),
+              isBestSeller: Boolean(item.is_best_seller ?? item.isBestSeller),
+              rating: Number(item.rating || 5.0),
+              reviewCount: Number(item.review_count || item.reviewCount || 1),
+              variations: Array.isArray(item.variations) ? item.variations : [],
+              createdAt: item.created_at || item.createdAt || new Date().toISOString(),
+            }));
+            saveProductsToDisk(formatted);
+            return res.json({ success: true, count: formatted.length, products: formatted, source: 'supabase' });
+          }
+        } catch (supaErr) {
+          console.warn('[Server Supabase Get Warning]:', supaErr);
+        }
       }
 
-      auditLogsStore.unshift({
-        id: 'audit-' + Date.now(),
-        action: 'PRODUCT_DELETED',
-        actor: 'admin@nexovira.com',
-        details: `Deleted product ${id} from catalog`,
-        timestamp: new Date().toISOString(),
-        metadata: { productId: id },
-      });
-
-      console.log(`[Product Delete API]: Successfully deleted product ${id}`);
       return res.json({
         success: true,
-        message: `Product ${id} permanently deleted from catalog`,
-        productId: id,
+        count: serverProductsMemory.length,
+        products: serverProductsMemory,
+        source: 'server_disk_store',
       });
     } catch (err: any) {
-      console.error('[Product Delete API Error]:', err);
-      return res.status(500).json({ success: false, message: err?.message || 'Failed to delete product' });
+      console.error('[Product GET Error]:', err);
+      return res.status(500).json({ success: false, message: err?.message || 'Failed to fetch products' });
     }
   });
 
-  app.post('/api/products', (req, res) => {
+  app.post('/api/products', async (req, res) => {
     try {
       const product = req.body;
       if (!product || !product.name) {
         return res.status(400).json({ success: false, message: 'Product title is required' });
+      }
+
+      if (!product.id) {
+        product.id = 'prod-' + Date.now();
+      }
+
+      // Save to server memory & disk
+      const existing = serverProductsMemory.filter((p) => p.id !== product.id);
+      const updatedList = [product, ...existing];
+      saveProductsToDisk(updatedList);
+
+      // Save to Supabase if configured
+      if (serverSupabase) {
+        try {
+          await serverSupabase.from('products').upsert({
+            id: product.id,
+            sku: product.sku || 'NEXO-' + Date.now(),
+            name: product.name,
+            slug: product.slug || product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            brand: product.brand || 'Nexovira',
+            category_id: product.categoryId || 'cat-refrigerators',
+            category_name: product.categoryName || 'Appliance',
+            price: product.price,
+            original_price: product.originalPrice,
+            discount_percent: product.discountPercent,
+            description: product.description,
+            features: product.features,
+            specs: product.specs,
+            images: product.images,
+            stock: product.stock,
+            is_featured: product.isFeatured,
+            is_new_arrival: product.isNewArrival,
+            is_best_seller: product.isBestSeller,
+            rating: product.rating || 5.0,
+            review_count: product.reviewCount || 1,
+            variations: product.variations,
+            created_at: product.createdAt || new Date().toISOString(),
+          });
+        } catch (supaErr) {
+          console.warn('[Server Supabase Upsert Error]:', supaErr);
+        }
       }
 
       auditLogsStore.unshift({
@@ -495,16 +765,62 @@ async function startServer() {
         metadata: { productId: product.id, sku: product.sku },
       });
 
+      // Broadcast SSE change event to all connected clients globally
+      broadcastSSE('products', { action: 'create', product });
+
+      console.log(`[Product Create API]: Created product ${product.id} - ${product.name}`);
       return res.json({ success: true, message: 'Product created successfully', data: product });
     } catch (err: any) {
+      console.error('[Product POST Error]:', err);
       return res.status(500).json({ success: false, message: err?.message || 'Failed to create product' });
     }
   });
 
-  app.put('/api/products/:id', (req, res) => {
+  app.put('/api/products/:id', async (req, res) => {
     try {
       const { id } = req.params;
       const product = req.body;
+      if (!id || !product) {
+        return res.status(400).json({ success: false, message: 'Product ID and payload are required' });
+      }
+
+      product.id = id;
+
+      const updatedList = serverProductsMemory.map((p) => (p.id === id ? { ...p, ...product } : p));
+      saveProductsToDisk(updatedList);
+
+      if (serverSupabase) {
+        try {
+          await serverSupabase
+            .from('products')
+            .update({
+              sku: product.sku,
+              name: product.name,
+              slug: product.slug,
+              brand: product.brand,
+              category_id: product.categoryId,
+              category_name: product.categoryName,
+              price: product.price,
+              original_price: product.originalPrice,
+              discount_percent: product.discountPercent,
+              description: product.description,
+              features: product.features,
+              specs: product.specs,
+              images: product.images,
+              stock: product.stock,
+              is_featured: product.isFeatured,
+              is_new_arrival: product.isNewArrival,
+              is_best_seller: product.isBestSeller,
+              rating: product.rating,
+              review_count: product.reviewCount,
+              variations: product.variations,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', id);
+        } catch (supaErr) {
+          console.warn('[Server Supabase Update Error]:', supaErr);
+        }
+      }
 
       auditLogsStore.unshift({
         id: 'audit-' + Date.now(),
@@ -515,9 +831,54 @@ async function startServer() {
         metadata: { productId: id },
       });
 
+      broadcastSSE('products', { action: 'update', product });
+
+      console.log(`[Product Update API]: Updated product ${id}`);
       return res.json({ success: true, message: 'Product updated successfully', data: product });
     } catch (err: any) {
+      console.error('[Product PUT Error]:', err);
       return res.status(500).json({ success: false, message: err?.message || 'Failed to update product' });
+    }
+  });
+
+  app.delete('/api/products/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      if (!id) {
+        return res.status(400).json({ success: false, message: 'Product ID is required for deletion' });
+      }
+
+      const updatedList = serverProductsMemory.filter((p) => p.id !== id);
+      saveProductsToDisk(updatedList);
+
+      if (serverSupabase) {
+        try {
+          await serverSupabase.from('products').delete().eq('id', id);
+        } catch (supaErr) {
+          console.warn('[Server Supabase Delete Error]:', supaErr);
+        }
+      }
+
+      auditLogsStore.unshift({
+        id: 'audit-' + Date.now(),
+        action: 'PRODUCT_DELETED',
+        actor: 'admin@nexovira.com',
+        details: `Deleted product ${id} from catalog`,
+        timestamp: new Date().toISOString(),
+        metadata: { productId: id },
+      });
+
+      broadcastSSE('products', { action: 'delete', productId: id });
+
+      console.log(`[Product Delete API]: Successfully deleted product ${id}`);
+      return res.json({
+        success: true,
+        message: `Product ${id} permanently deleted from catalog`,
+        productId: id,
+      });
+    } catch (err: any) {
+      console.error('[Product Delete API Error]:', err);
+      return res.status(500).json({ success: false, message: err?.message || 'Failed to delete product' });
     }
   });
 

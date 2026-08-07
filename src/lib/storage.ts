@@ -15,7 +15,9 @@ import {
   EmailNotificationLog,
 } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_CATEGORIES, INITIAL_SETTINGS, INITIAL_SHIPPING_ZONES } from '../data/initialData';
-import { realtimeSync } from './supabaseClient';
+import { realtimeSync, supabase } from './supabaseClient';
+
+let memoryProductsCache: Product[] | null = null;
 
 const KEYS = {
   USER: 'nexovira_user_session',
@@ -133,28 +135,227 @@ export const storageApi = {
 
   // Products
   getProducts(): Product[] {
-    return getStoredItem<Product[]>(KEYS.PRODUCTS, INITIAL_PRODUCTS);
+    if (memoryProductsCache && memoryProductsCache.length > 0) {
+      return memoryProductsCache;
+    }
+    const local = getStoredItem<Product[]>(KEYS.PRODUCTS, INITIAL_PRODUCTS);
+    memoryProductsCache = local;
+    return local;
   },
-  saveProducts(products: Product[]): void {
+
+  setProductsCache(products: Product[]): void {
+    memoryProductsCache = products;
     setStoredItem(KEYS.PRODUCTS, products);
   },
+
+  async fetchProductsAsync(): Promise<Product[]> {
+    // 1. Query Supabase directly if configured client-side
+    if (supabase) {
+      try {
+        const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+        if (!error && data && data.length > 0) {
+          const formatted: Product[] = data.map((item: any) => ({
+            id: item.id,
+            sku: item.sku || 'NEXO-' + item.id,
+            name: item.name,
+            slug: item.slug || item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            brand: item.brand || 'Nexovira',
+            categoryId: item.category_id || item.categoryId || 'cat-refrigerators',
+            categoryName: item.category_name || item.categoryName || 'Appliance',
+            price: Number(item.price || 0),
+            originalPrice: item.original_price ? Number(item.original_price) : undefined,
+            discountPercent: item.discount_percent ? Number(item.discount_percent) : undefined,
+            description: item.description || '',
+            features: Array.isArray(item.features) ? item.features : typeof item.features === 'string' ? JSON.parse(item.features) : [],
+            specs: typeof item.specs === 'object' && item.specs ? item.specs : {},
+            images: Array.isArray(item.images) ? item.images : typeof item.images === 'string' ? JSON.parse(item.images) : [item.image || 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1000&q=80'],
+            stock: Number(item.stock || 0),
+            isFeatured: Boolean(item.is_featured ?? item.isFeatured),
+            isNewArrival: Boolean(item.is_new_arrival ?? item.isNewArrival),
+            isBestSeller: Boolean(item.is_best_seller ?? item.isBestSeller),
+            rating: Number(item.rating || 5.0),
+            reviewCount: Number(item.review_count || item.reviewCount || 1),
+            variations: Array.isArray(item.variations) ? item.variations : [],
+            createdAt: item.created_at || item.createdAt || new Date().toISOString(),
+          }));
+          this.setProductsCache(formatted);
+          return formatted;
+        }
+      } catch (supabaseErr) {
+        // Silently continue to server API
+      }
+    }
+
+    // 2. Query backend API endpoint
+    try {
+      const res = await fetch('/api/products?t=' + Date.now(), { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.products) && json.products.length > 0) {
+          this.setProductsCache(json.products);
+          return json.products;
+        }
+      }
+    } catch (apiErr) {
+      // Silently fall back to local cached products
+    }
+
+    return this.getProducts();
+  },
+
+  saveProducts(products: Product[]): void {
+    this.setProductsCache(products);
+  },
+
   addProduct(product: Product): Product[] {
-    const products = this.getProducts();
+    const products = this.getProducts().filter(p => p.id !== product.id);
     const updated = [product, ...products];
-    this.saveProducts(updated);
+    this.setProductsCache(updated);
+    this.addProductAsync(product).catch(() => {});
     return updated;
   },
+
+  async addProductAsync(product: Product): Promise<Product[]> {
+    let savedProduct = product;
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(product),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data) savedProduct = json.data;
+      }
+    } catch (err) {
+      console.warn('[Add Product API Warning]:', err);
+    }
+
+    if (supabase) {
+      try {
+        await supabase.from('products').upsert({
+          id: savedProduct.id,
+          sku: savedProduct.sku,
+          name: savedProduct.name,
+          slug: savedProduct.slug,
+          brand: savedProduct.brand,
+          category_id: savedProduct.categoryId,
+          category_name: savedProduct.categoryName,
+          price: savedProduct.price,
+          original_price: savedProduct.originalPrice,
+          discount_percent: savedProduct.discountPercent,
+          description: savedProduct.description,
+          features: savedProduct.features,
+          specs: savedProduct.specs,
+          images: savedProduct.images,
+          stock: savedProduct.stock,
+          is_featured: savedProduct.isFeatured,
+          is_new_arrival: savedProduct.isNewArrival,
+          is_best_seller: savedProduct.isBestSeller,
+          rating: savedProduct.rating,
+          review_count: savedProduct.reviewCount,
+          variations: savedProduct.variations,
+          created_at: savedProduct.createdAt,
+        });
+      } catch (err) {
+        console.warn('[Supabase Product Insert Warning]:', err);
+      }
+    }
+
+    const products = this.getProducts().filter(p => p.id !== savedProduct.id);
+    const updated = [savedProduct, ...products];
+    this.setProductsCache(updated);
+    realtimeSync.notifyChange('products', { action: 'create', product: savedProduct });
+    return updated;
+  },
+
   updateProduct(updatedProduct: Product): Product[] {
     const products = this.getProducts();
     const updated = products.map((p) => (p.id === updatedProduct.id ? updatedProduct : p));
-    this.saveProducts(updated);
+    this.setProductsCache(updated);
+    this.updateProductAsync(updatedProduct).catch(() => {});
     return updated;
   },
+
+  async updateProductAsync(updatedProduct: Product): Promise<Product[]> {
+    try {
+      await fetch(`/api/products/${updatedProduct.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedProduct),
+      });
+    } catch (err) {
+      console.warn('[Update Product API Warning]:', err);
+    }
+
+    if (supabase) {
+      try {
+        await supabase.from('products').update({
+          sku: updatedProduct.sku,
+          name: updatedProduct.name,
+          slug: updatedProduct.slug,
+          brand: updatedProduct.brand,
+          category_id: updatedProduct.categoryId,
+          category_name: updatedProduct.categoryName,
+          price: updatedProduct.price,
+          original_price: updatedProduct.originalPrice,
+          discount_percent: updatedProduct.discountPercent,
+          description: updatedProduct.description,
+          features: updatedProduct.features,
+          specs: updatedProduct.specs,
+          images: updatedProduct.images,
+          stock: updatedProduct.stock,
+          is_featured: updatedProduct.isFeatured,
+          is_new_arrival: updatedProduct.isNewArrival,
+          is_best_seller: updatedProduct.isBestSeller,
+          rating: updatedProduct.rating,
+          review_count: updatedProduct.reviewCount,
+          variations: updatedProduct.variations,
+          updated_at: new Date().toISOString(),
+        }).eq('id', updatedProduct.id);
+      } catch (err) {
+        console.warn('[Supabase Product Update Warning]:', err);
+      }
+    }
+
+    const products = this.getProducts();
+    const updated = products.map((p) => (p.id === updatedProduct.id ? updatedProduct : p));
+    this.setProductsCache(updated);
+    realtimeSync.notifyChange('products', { action: 'update', product: updatedProduct });
+    return updated;
+  },
+
   deleteProduct(productId: string): Product[] {
     const products = this.getProducts();
     const updated = products.filter((p) => p.id !== productId);
-    this.saveProducts(updated);
+    this.setProductsCache(updated);
     this.cleanProductFromCartsAndWishlists(productId);
+    this.deleteProductAsync(productId).catch(() => {});
+    return updated;
+  },
+
+  async deleteProductAsync(productId: string): Promise<Product[]> {
+    try {
+      await fetch(`/api/products/${productId}`, {
+        method: 'DELETE',
+      });
+    } catch (err) {
+      console.warn('[Delete Product API Warning]:', err);
+    }
+
+    if (supabase) {
+      try {
+        await supabase.from('products').delete().eq('id', productId);
+      } catch (err) {
+        console.warn('[Supabase Product Delete Warning]:', err);
+      }
+    }
+
+    const products = this.getProducts();
+    const updated = products.filter((p) => p.id !== productId);
+    this.setProductsCache(updated);
+    this.cleanProductFromCartsAndWishlists(productId);
+    realtimeSync.notifyChange('products', { action: 'delete', productId });
     return updated;
   },
   cleanProductFromCartsAndWishlists(productId: string): void {
@@ -386,7 +587,7 @@ export const storageApi = {
   },
   deleteOrder(orderId: string): Order[] {
     const orders = this.getOrders();
-    const updated = orders.filter((o) => o.id !== orderId);
+    const updated = orders.filter((o) => o.id !== orderId && o.orderNumber !== orderId);
     this.saveOrders(updated);
     return updated;
   },
