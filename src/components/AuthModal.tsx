@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Lock, Mail, User, Phone, ArrowRight, ShieldCheck, AlertCircle, KeyRound, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import { UserProfile } from '../types';
 import { DEMO_ADMIN, storageApi } from '../lib/storage';
+import { NexoviraLogo } from './NexoviraLogo';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -161,21 +162,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-fade-in">
       <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
         {/* Header Banner */}
-        <div className={`p-6 text-white ${mode === 'admin' ? 'bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950' : 'bg-gradient-to-r from-cyan-600 to-blue-700'}`}>
+        <div className={`p-5 sm:p-6 text-white ${mode === 'admin' ? 'bg-gradient-to-r from-slate-900 via-slate-800 to-amber-950' : 'bg-gradient-to-r from-slate-900 to-blue-950'}`}>
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-1.5 rounded-full bg-black/20 hover:bg-black/40 text-white transition-colors"
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-black/30 hover:bg-black/50 text-white transition-colors"
+            aria-label="Close modal"
           >
             <X className="w-4 h-4" />
           </button>
 
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center">
-              {mode === 'admin' ? <Lock className="w-4 h-4 text-amber-300" /> : mode === 'forgot' ? <RefreshCw className="w-4 h-4 text-amber-200" /> : <User className="w-4 h-4 text-cyan-200" />}
-            </div>
-            <span className="text-xs font-bold uppercase tracking-wider text-cyan-200">
-              {mode === 'admin' ? 'Restricted Access' : mode === 'forgot' ? 'Account Recovery' : mode === 'signin' ? 'Welcome Back' : 'Create Account'}
-            </span>
+          <div className="mb-3">
+            <NexoviraLogo size="xs" lightMode={false} />
           </div>
 
           <h3 className="text-xl font-bold font-display">

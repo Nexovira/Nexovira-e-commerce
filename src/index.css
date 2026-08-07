@@ -1,1 +1,24 @@
 @import "tailwindcss";
+
+@layer base {
+  *, ::before, ::after {
+    box-sizing: border-box;
+  }
+
+  html, body, #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden !important;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* Hide scrollbar utility for clean mobile horizontal scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

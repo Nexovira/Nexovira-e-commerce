@@ -51,25 +51,26 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     .slice(0, 3);
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white border border-slate-200 rounded-2xl max-w-4xl w-full my-8 overflow-hidden shadow-2xl relative text-slate-900 max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-white border border-slate-200 rounded-2xl max-w-4xl w-full my-2 sm:my-8 overflow-hidden shadow-2xl relative text-slate-900 max-h-[95vh] sm:max-h-[90vh] flex flex-col">
         {/* Top Header */}
-        <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-blue-600 font-bold uppercase tracking-wider">{product.brand}</span>
+        <div className="p-3 sm:p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs min-w-0">
+            <span className="text-blue-600 font-bold uppercase tracking-wider truncate">{product.brand}</span>
             <span className="text-slate-300">•</span>
-            <span className="text-slate-500 font-medium">SKU: {product.sku}</span>
+            <span className="text-slate-500 font-medium truncate">SKU: {product.sku}</span>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-200"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-900 hover:bg-slate-200 min-w-[36px] min-h-[36px] flex items-center justify-center"
+            aria-label="Close detail modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Scrollable Main Content */}
-        <div className="p-6 overflow-y-auto space-y-8 flex-1">
+        <div className="p-3 sm:p-6 overflow-y-auto space-y-5 sm:space-y-8 flex-1">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
             {/* Left Gallery Column */}
             <div className="md:col-span-6 space-y-4">

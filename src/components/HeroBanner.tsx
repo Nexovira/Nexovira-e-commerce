@@ -101,10 +101,10 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
             </p>
 
             {/* CTA Buttons */}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-2">
               <button
                 onClick={onExploreShop}
-                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold px-6 py-3.5 rounded-xl transition-all shadow-lg shadow-cyan-500/25 flex items-center gap-2 text-sm group"
+                className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-bold px-5 py-3.5 min-h-[44px] rounded-xl transition-all shadow-lg shadow-cyan-500/25 flex items-center justify-center gap-2 text-sm group"
               >
                 <span>Shop Premium Catalogue</span>
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -112,7 +112,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
               <button
                 onClick={onOpenAiAssistant}
-                className="bg-slate-800 hover:bg-slate-750 text-white border border-slate-700 font-semibold px-5 py-3.5 rounded-xl transition-colors flex items-center gap-2 text-sm"
+                className="bg-slate-800 hover:bg-slate-750 text-white border border-slate-700 font-semibold px-5 py-3.5 min-h-[44px] rounded-xl transition-colors flex items-center justify-center gap-2 text-sm"
               >
                 <Sparkles className="w-4 h-4 text-cyan-300" />
                 <span>Ask AI Advisor</span>
@@ -120,44 +120,44 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
             </div>
 
             {/* Value Props Row */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-6 border-t border-slate-800 text-xs">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center font-bold">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-4 pt-6 border-t border-slate-800 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center font-bold shrink-0">
                   <ShieldCheck className="w-4 h-4" />
                 </div>
-                <div>
-                  <p className="font-bold text-white">Official Warranty</p>
-                  <p className="text-slate-400 text-[11px]">Up to 10-Yr Motor</p>
+                <div className="min-w-0">
+                  <p className="font-bold text-white text-[11px] sm:text-xs truncate">Official Warranty</p>
+                  <p className="text-slate-400 text-[10px] sm:text-[11px] truncate">Up to 10-Yr Motor</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold shrink-0">
                   <Truck className="w-4 h-4" />
                 </div>
-                <div>
-                  <p className="font-bold text-white">Express Shipping</p>
-                  <p className="text-slate-400 text-[11px]">Doorstep Delivery</p>
+                <div className="min-w-0">
+                  <p className="font-bold text-white text-[11px] sm:text-xs truncate">Express Shipping</p>
+                  <p className="text-slate-400 text-[10px] sm:text-[11px] truncate">Doorstep Delivery</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold shrink-0">
                   <Zap className="w-4 h-4" />
                 </div>
-                <div>
-                  <p className="font-bold text-white">Gen-Mode Ready</p>
-                  <p className="text-slate-400 text-[11px]">Low Wattage Tech</p>
+                <div className="min-w-0">
+                  <p className="font-bold text-white text-[11px] sm:text-xs truncate">Gen-Mode Ready</p>
+                  <p className="text-slate-400 text-[10px] sm:text-[11px] truncate">Low Wattage Tech</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-300 flex items-center justify-center font-bold">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-cyan-500/10 text-cyan-300 flex items-center justify-center font-bold shrink-0">
                   <Award className="w-4 h-4" />
                 </div>
-                <div>
-                  <p className="font-bold text-white">Paystack Verified</p>
-                  <p className="text-slate-400 text-[11px]">100% Safe Payments</p>
+                <div className="min-w-0">
+                  <p className="font-bold text-white text-[11px] sm:text-xs truncate">Paystack Verified</p>
+                  <p className="text-slate-400 text-[10px] sm:text-[11px] truncate">100% Safe Payments</p>
                 </div>
               </div>
             </div>

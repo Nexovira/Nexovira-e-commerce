@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { NexoviraLogo } from './NexoviraLogo';
 import {
   UserProfile,
   Order,
@@ -245,33 +246,31 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
     <div className="py-10 bg-slate-50 text-slate-900 min-h-screen">
       <div className="max-w-7xl mx-auto px-4">
         {/* User Header Profile Banner */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-blue-600 text-white font-black text-2xl flex items-center justify-center shadow-md">
-              {currentUser.fullName.charAt(0)}
-            </div>
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 mb-4 sm:mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-center gap-3">
+            <NexoviraLogo size="xs" lightMode={true} showText={false} />
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-slate-900 font-display">{currentUser.fullName}</h1>
-                <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-2 py-0.5 rounded font-bold uppercase">
+                <h1 className="text-base sm:text-xl font-bold text-slate-900 font-display">{currentUser.fullName}</h1>
+                <span className="text-[9px] sm:text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-1.5 py-0.5 rounded font-bold uppercase">
                   Verified Customer
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">{currentUser.email} • {currentUser.phone}</p>
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">{currentUser.email} • {currentUser.phone}</p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-xs">
-            <div className="bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200">
-              <span className="text-slate-500 block text-[10px] uppercase font-semibold">Wallet Balance</span>
-              <span className="text-base font-black text-slate-900">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs w-full md:w-auto">
+            <div className="bg-slate-50 p-2.5 sm:px-4 sm:py-2.5 rounded-xl border border-slate-200">
+              <span className="text-slate-500 block text-[9px] sm:text-[10px] uppercase font-bold">Wallet Balance</span>
+              <span className="text-sm sm:text-base font-black text-slate-900">
                 ₦{currentUser.walletBalance.toLocaleString()}
               </span>
             </div>
 
-            <div className="bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200">
-              <span className="text-slate-500 block text-[10px] uppercase font-semibold">Referral Earnings</span>
-              <span className="text-base font-black text-emerald-600">
+            <div className="bg-slate-50 p-2.5 sm:px-4 sm:py-2.5 rounded-xl border border-slate-200">
+              <span className="text-slate-500 block text-[9px] sm:text-[10px] uppercase font-bold">Referral Earnings</span>
+              <span className="text-sm sm:text-base font-black text-emerald-600">
                 ₦{currentUser.referralEarnings.toLocaleString()}
               </span>
             </div>
@@ -279,7 +278,7 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-200 mb-8 overflow-x-auto pb-2 text-xs font-semibold">
+        <div className="flex items-center gap-1.5 sm:gap-2 border-b border-slate-200 mb-6 overflow-x-auto pb-2 text-xs font-semibold no-scrollbar">
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'orders', label: `My Orders (${customerOrders.length})` },
@@ -290,9 +289,9 @@ export const CustomerDashboard: React.FC<CustomerDashboardProps> = ({
             <button
               key={tab.id}
               onClick={() => setActiveSubTab(tab.id as any)}
-              className={`px-4 py-2.5 rounded-xl transition-all whitespace-nowrap ${
+              className={`px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] rounded-xl transition-all whitespace-nowrap ${
                 activeSubTab === tab.id
-                  ? 'bg-blue-600 text-white font-bold shadow-sm'
+                  ? 'bg-blue-600 text-white font-bold shadow-xs'
                   : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
               }`}
             >

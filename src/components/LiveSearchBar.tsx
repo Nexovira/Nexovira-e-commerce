@@ -52,8 +52,8 @@ export const LiveSearchBar: React.FC<LiveSearchBarProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-md flex items-start justify-center pt-16 px-4">
-      <div className="w-full max-w-3xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-200 text-slate-900">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-md flex items-start justify-center pt-4 sm:pt-16 p-2 sm:p-4">
+      <div className="w-full max-w-3xl bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200 text-slate-900">
         {/* Input Bar */}
         <div className="p-4 border-b border-slate-200 flex items-center gap-3 bg-slate-50">
           <Search className="w-5 h-5 text-blue-600 shrink-0" />

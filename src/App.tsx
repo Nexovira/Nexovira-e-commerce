@@ -16,6 +16,7 @@ import { AboutPage } from './components/AboutPage';
 import { GeminiAiAssistant } from './components/GeminiAiAssistant';
 import { AuthModal } from './components/AuthModal';
 import { Footer } from './components/Footer';
+import { MobileBottomNav } from './components/MobileBottomNav';
 
 import { Product, ProductCategory, Order, UserProfile, CartItem } from './types';
 import { storageApi, DEMO_CUSTOMER, DEMO_ADMIN } from './lib/storage';
@@ -226,7 +227,7 @@ export default function App() {
       />
 
       {/* Main View Area */}
-      <main className="flex-1">
+      <main className="flex-1 pb-28 md:pb-0">
         {activeTab === 'home' && (
           <div>
             <HeroBanner
@@ -465,6 +466,21 @@ export default function App() {
           setAuthInitialMode('admin');
           setAuthModalOpen(true);
         }}
+      />
+
+      {/* Native App-Like Mobile Bottom Navigation Bar */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        currentUser={currentUser}
+        cart={cart}
+        wishlistCount={wishlistIds.length}
+        onOpenCart={() => setCartOpen(true)}
+        onOpenAuth={(mode = 'signin') => {
+          setAuthInitialMode(mode);
+          setAuthModalOpen(true);
+        }}
+        onOpenAiAssistant={() => setAiOpen(true)}
       />
     </div>
   );

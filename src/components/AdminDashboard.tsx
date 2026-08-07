@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { NexoviraLogo } from './NexoviraLogo';
 import {
   Product,
   ProductCategory,
@@ -381,54 +382,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     <div className="py-10 bg-slate-50 text-slate-900 min-h-screen">
       <div className="max-w-7xl mx-auto px-4">
         {/* Admin Header */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 mb-4 sm:mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white font-black text-xl flex items-center justify-center shadow-md">
-              ⚡
-            </div>
+            <NexoviraLogo size="sm" lightMode={true} showText={false} />
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 font-display">
-                Nexovira Executive Admin Dashboard
+              <h1 className="text-lg sm:text-2xl font-black text-slate-900 font-display leading-tight">
+                Nexovira Store Admin
               </h1>
-              <p className="text-xs text-slate-500">
-                Full-stack store management, payments, inventory, and referrals
+              <p className="text-[11px] sm:text-xs text-slate-500">
+                Full-stack store management, inventory & orders
               </p>
             </div>
           </div>
 
           <button
             onClick={onRefreshData}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all"
+            className="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 px-3 py-2 min-h-[44px] rounded-xl text-xs font-bold flex items-center gap-2 transition-all self-stretch md:self-auto justify-center"
           >
             <RefreshCw className="w-4 h-4 text-blue-600" />
-            <span>Sync Data</span>
+            <span>Sync Live Data</span>
           </button>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-200 mb-8 overflow-x-auto pb-2 text-xs font-semibold">
+        <div className="flex items-center gap-1.5 sm:gap-2 border-b border-slate-200 mb-6 overflow-x-auto pb-2 text-xs font-semibold no-scrollbar">
           {[
-            { id: 'analytics', label: 'KPI Analytics', icon: TrendingUp },
-            { id: 'paystack', label: 'Paystack Gateway & Audit', icon: ShieldCheck },
+            { id: 'analytics', label: 'Analytics', icon: TrendingUp },
+            { id: 'paystack', label: 'Paystack Gateway', icon: ShieldCheck },
             { id: 'products', label: `Products (${products.length})`, icon: Package },
             { id: 'categories', label: `Categories (${categories.length})`, icon: Layers },
-            { id: 'shipping', label: `Shipping Zones (${shippingZones.length})`, icon: Truck },
-            { id: 'orders', label: `Customer Orders (${orders.length})`, icon: ShoppingBag },
+            { id: 'shipping', label: `Shipping (${shippingZones.length})`, icon: Truck },
+            { id: 'orders', label: `Orders (${orders.length})`, icon: ShoppingBag },
             { id: 'withdrawals', label: `Withdrawals (${pendingWithdrawals.length})`, icon: Send },
-            { id: 'settings', label: 'Business Settings', icon: Settings },
+            { id: 'settings', label: 'Settings', icon: Settings },
           ].map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-4 py-2.5 rounded-xl transition-all whitespace-nowrap flex items-center gap-2 ${
+                className={`px-3 sm:px-4 py-2 sm:py-2.5 min-h-[44px] rounded-xl transition-all whitespace-nowrap flex items-center gap-2 ${
                   activeTab === tab.id
-                    ? 'bg-blue-600 text-white font-bold shadow-sm'
+                    ? 'bg-blue-600 text-white font-bold shadow-xs'
                     : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-4 h-4 shrink-0" />
                 <span>{tab.label}</span>
               </button>
             );
@@ -437,30 +436,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Analytics Tab */}
         {activeTab === 'analytics' && (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
-                <DollarSign className="w-6 h-6 text-emerald-600 mb-2" />
-                <h3 className="text-xs font-bold text-slate-500 uppercase">Verified Gross Revenue</h3>
-                <p className="text-2xl font-black text-slate-900 mt-1">₦{totalRevenue.toLocaleString()}</p>
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6">
+              <div className="bg-white border border-slate-200 p-3.5 sm:p-5 rounded-2xl shadow-xs">
+                <DollarSign className="w-5 h-5 text-emerald-600 mb-1" />
+                <h3 className="text-[10px] sm:text-xs font-extrabold text-slate-500 uppercase tracking-wider">Revenue</h3>
+                <p className="text-base sm:text-2xl font-black text-slate-900 mt-0.5">₦{totalRevenue.toLocaleString()}</p>
               </div>
 
-              <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
-                <ShoppingBag className="w-6 h-6 text-blue-600 mb-2" />
-                <h3 className="text-xs font-bold text-slate-500 uppercase">Total Completed Orders</h3>
-                <p className="text-2xl font-black text-slate-900 mt-1">{orders.length}</p>
+              <div className="bg-white border border-slate-200 p-3.5 sm:p-5 rounded-2xl shadow-xs">
+                <ShoppingBag className="w-5 h-5 text-blue-600 mb-1" />
+                <h3 className="text-[10px] sm:text-xs font-extrabold text-slate-500 uppercase tracking-wider">Orders</h3>
+                <p className="text-base sm:text-2xl font-black text-slate-900 mt-0.5">{orders.length}</p>
               </div>
 
-              <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
-                <AlertTriangle className="w-6 h-6 text-amber-500 mb-2" />
-                <h3 className="text-xs font-bold text-slate-500 uppercase">Low Stock Alerts</h3>
-                <p className="text-2xl font-black text-amber-600 mt-1">{lowStockCount} Items</p>
+              <div className="bg-white border border-slate-200 p-3.5 sm:p-5 rounded-2xl shadow-xs">
+                <AlertTriangle className="w-5 h-5 text-amber-500 mb-1" />
+                <h3 className="text-[10px] sm:text-xs font-extrabold text-slate-500 uppercase tracking-wider">Low Stock</h3>
+                <p className="text-base sm:text-2xl font-black text-amber-600 mt-0.5">{lowStockCount} Items</p>
               </div>
 
-              <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm">
-                <Send className="w-6 h-6 text-rose-600 mb-2" />
-                <h3 className="text-xs font-bold text-slate-500 uppercase">Pending Withdrawals</h3>
-                <p className="text-2xl font-black text-rose-600 mt-1">{pendingWithdrawals.length}</p>
+              <div className="bg-white border border-slate-200 p-3.5 sm:p-5 rounded-2xl shadow-xs">
+                <Send className="w-5 h-5 text-rose-600 mb-1" />
+                <h3 className="text-[10px] sm:text-xs font-extrabold text-slate-500 uppercase tracking-wider">Withdrawals</h3>
+                <p className="text-base sm:text-2xl font-black text-rose-600 mt-0.5">{pendingWithdrawals.length}</p>
               </div>
             </div>
           </div>
@@ -1803,6 +1802,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
           </div>
+        )}
+
+        {/* Mobile Floating Action Button (FAB) for Adding Product */}
+        {activeTab === 'products' && !isAddingProduct && (
+          <button
+            onClick={() => {
+              setEditingProduct(null);
+              setPSku('NEXO-' + Math.floor(1000 + Math.random() * 9000));
+              setPName('');
+              setPBrand('Nexovira Pro');
+              setPCategory(categories[0]?.id || 'cat-refrigerators');
+              setPPrice(150000);
+              setPOriginalPrice(180000);
+              setPStock(10);
+              setPDesc('');
+              setPImgUrl('https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=1000&q=80');
+              setIsAddingProduct(true);
+            }}
+            className="md:hidden fixed bottom-6 right-6 z-40 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white w-14 h-14 rounded-full shadow-2xl flex items-center justify-center font-bold border-2 border-white transition-all"
+            aria-label="Add New Product"
+          >
+            <Plus className="w-7 h-7" />
+          </button>
         )}
 
         {/* Global Toast Notification Overlay */}
